@@ -1,0 +1,17 @@
+#!/bin/sh
+
+#Define some global constants
+ROOT_FOLDER=$PWD
+EXPERIMENT_ID=$1
+#PREPARE_LOAD="$ROOT_FOLDER/prepare_load.sh"
+
+#source $PREPARE_LOAD $EXPERIMENT_ID
+
+#EXPERIMENT_FOLDER="$ROOT_FOLDER/experiments/exp_$EXPERIMENT_ID"
+EXPERIMENT_FOLDER="exp_$EXPERIMENT_ID"
+#mkdir -p "$EXPERIMENT_FOLDER"
+COMPRESS_FOLDER="$ROOT_FOLDER/experiments"
+
+cd "$COMPRESS_FOLDER"
+
+tar -xf "expr_$EXPERIMENT_ID.tar.gz"

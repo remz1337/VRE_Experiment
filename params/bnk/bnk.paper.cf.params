@@ -1,0 +1,117 @@
+# Copyright 2010 by Sean Luke and George Mason University
+# Licensed under the Academic Free License version 3.0
+# See the file "LICENSE" for more information
+
+# one thread
+evalthreads = 				1
+breedthreads = 				1
+
+# ECJ used to use this as its initial random seed by default.  No longer, now
+# it's assumed to be the wall clock time by default.
+#seed.0 = 				43578
+seed.0 =				time
+
+
+# ec.EvolutionState
+# ==============================
+
+# We're not writing checkpoint files.  If we were, we'd do it every
+# generation, and the prefix to all the files would be "ec.*"
+checkpoint =				false
+checkpoint-modulo =                     1
+checkpoint-prefix = 			ec
+
+silent = true
+
+# simple generational evolution
+state = 				    ec.simple.SimpleEvolutionState
+
+
+# ec.EvolutionState
+# ==============================
+
+# We're using the standard initialization method
+init = 					    ec.simple.SimpleInitializer
+
+# We're using the standard (empty) finalization method
+finish = 	        	    ec.simple.SimpleFinisher
+#finish = 	        	    ec.vre.VREFinisher
+
+# We're using the standard (empty) exchange method
+exch = 					    ec.simple.SimpleExchanger
+
+# We're using standard breeding -- no cross-population breeding
+breed =					    ec.simple.SimpleBreeder
+
+# We're using standard evaluation -- no coevolution
+eval =					    ec.simple.SimpleEvaluator
+
+# We're using simple statistics
+stat =					    ec.simple.SimpleStatistics
+
+# run for 51 generations, quit prematurely if I find something ideal
+generations =				1
+quit-on-run-complete =		true
+
+# ec.Initializer
+# ==============================
+pop = 					    ec.Population
+
+# ec.Population
+# ==============================
+
+# No multiple populations
+pop.subpops =				1
+pop.subpop.0 = 				ec.Subpopulation
+
+# ec.Subpopulation
+# ==============================
+
+pop.subpop.0.size =			10000000
+pop.subpop.0.duplicate-retries =	5
+
+# ==You need to provide the species info for the subpopulation.==
+
+# ec.simple.SimpleBreeder
+# ==============================
+
+
+
+
+eval.problem = ec.app.bnk.BNK_Oscillator4
+#eval.problem.target-phenotype =   1111111111111111001100110011001111011101110011000001000100000000
+
+pop.subpop.0.species = ec.vector.BNKVectorSpecies
+pop.subpop.0.species.pipe = ec.vector.breed.VectorBaselineMutationPipeline
+vre.baselinemutation.keepbest = true
+vre.baselinemutation.neighborhood = 1
+pop.subpop.0.species.pipe.source.0 = ec.select.SteadySelection
+
+pop.subpop.0.species.ind = ec.vector.BNKVectorIndividual
+#Genome size needs to match with (N,K)
+pop.subpop.0.species.genome-size = 24
+pop.subpop.0.species.ind.n = 4
+pop.subpop.0.species.ind.k = 2
+pop.subpop.0.species.fitness = ec.simple.SimpleFitness
+
+#select.tournament.size =                2
+pop.subpop.0.species.mutation-type = baseline
+pop.subpop.0.species.mutation-prob = 0.05
+#pop.subpop.0.species.crossover-type =two
+
+##############################
+# Logging
+##############################
+#stat =					                        ec.simple.SimpleStatistics
+#stat.file = 			                        $out.stat
+
+# Export population to file through statistics
+#stat.num-children      = 1
+#stat.child.0           = ec.vre.VREStats
+#stat.child.0.VRE-CSV = $bnk.csv
+
+#stat = ec.vre.VREStats
+#stat.VRE-CSV = $bnk.csv
+
+stat = ec.vre.BNKStats
+stat.VRE-CSV = $bnk.csv

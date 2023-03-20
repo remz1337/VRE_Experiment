@@ -1,0 +1,4 @@
+# grammar of the regression problem including ERCs
+<start> ::= <op>
+<op> ::= (+ <op><op>)|(-<op><op>) |(* <op> <op>) | (% <op> <op>)
+<op>::=(x)

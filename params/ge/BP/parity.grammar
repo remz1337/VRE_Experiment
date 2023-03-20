@@ -1,0 +1,5 @@
+# grammar of the parity problem including ERCs
+<start> ::= <op>
+<op> ::= (and <op><op>) | (or <op><op>) | (nand <op> <op>) | (nor <op> <op>)
+<op> ::= (not <op>)
+<op> ::= (D0) | (D1) | (D2) | (D3)
