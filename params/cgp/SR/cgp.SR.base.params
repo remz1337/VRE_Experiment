@@ -139,7 +139,7 @@ pop.subpop.0.species.num-functions = 4
 pop.subpop.0.species.nodes = 20
 
 # number of input nodes in your CGP.  Your problem class feeds these inputs to the CGPEvaluator.
-pop.subpop.0.species.inputs = 2
+pop.subpop.0.species.inputs = 1
 
 # number of output nodes in your CGP.  Your problem class extracts these outputs from the CGPEvaluator.
 pop.subpop.0.species.outputs = 1
@@ -164,7 +164,7 @@ vre.baselinemutation.neighborhood = 1
 pop.subpop.0.species.pipe.source.0 = ec.select.SteadySelection
 
 
-#pop.file = path/to/repo/ecj_cgp/ecj/population.in
+ 
 
 #================================================================================
 # Class that sets up the parity problem.  Invokes the CGPEvaluator on all

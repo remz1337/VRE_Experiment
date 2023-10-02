@@ -25,11 +25,11 @@ source $PREPARE_LOAD $EXPERIMENT_ID
 PLOTTER_MEM="4G"
 EXP_SCALE=$((POPULATION_SIZE * GENERATIONS))
 if [ $EXP_SCALE -ge 1000000 ]; then 
-	PLOTTER_MEM="100G"
+	PLOTTER_MEM="160G"
 elif [ $EXP_SCALE -ge 100000 ]; then 
-	PLOTTER_MEM="50G"
+	PLOTTER_MEM="80G"
 elif [ $EXP_SCALE -ge 10000 ]; then 
-	PLOTTER_MEM="25G"
+	PLOTTER_MEM="40G"
 else
 	PLOTTER_MEM="16G"
 fi
@@ -49,6 +49,7 @@ echo "There are $REMAINING_JOBS remaining jobs to process."
 
 if [ $REMAINING_JOBS -eq 0 ]; then
 
+	#VRE_ARGUMENTS="--experiment=$EXPERIMENT_ID --credentials=$MYSQL_CREDENTIALS_FILE -f"
 	VRE_ARGUMENTS="--experiment=$EXPERIMENT_ID --credentials=$MYSQL_CREDENTIALS_FILE"
 
 	#Run the VRE Analysis

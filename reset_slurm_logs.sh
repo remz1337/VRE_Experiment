@@ -1,15 +1,18 @@
 #!/bin/sh
 
 #Clean up slurm logs
-rm -rf slurm/prepare
-rm -rf slurm/prepare_sample
-rm -rf slurm/generate
-rm -rf slurm/generate_vre
-rm -rf slurm/generate_baseline
-rm -rf slurm/analyze
-rm -rf slurm/plotter
-rm -rf slurm/compress
+rm -rf slurm/prepare/*
+rm -rf slurm/prepare_sample/*
+rm -rf slurm/generate/*
+rm -rf slurm/generate_vre/*
+rm -rf slurm/generate_baseline/*
+rm -rf slurm/analyze/*
+rm -rf slurm/plotter/*
+rm -rf slurm/compress/*
 #rm -rf slurm/proxy
+
+#Clean up matplotlib's cache for TeX (tends to use all quota)
+rm -rf /home/user/.cache/matplotlib/tex.cache
 
 #Create slurm dirs
 mkdir -p "slurm/prepare"

@@ -170,7 +170,7 @@ gep.species.gene-linking-function = and
 gep.species.problemtype = logical
 
 #gep.species.symbolset.terminalfilename = params/gep/BP/BooleanParity.txt
-gep.species.symbolset.terminalfilename = path/to/repo/VRE_Experiment/params/gep/BP/BooleanParity.txt
+gep.species.symbolset.terminalfilename = /home/user/VRE_Experiment/params/gep/BP/BooleanParity.txt
 gep.species.symbolset.functionsize = 5
 gep.species.symbolset.function.0 = Not
 gep.species.symbolset.function.0.weight = 1

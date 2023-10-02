@@ -1,0 +1,117 @@
+# ECJ parameter file
+# Problem: Ant trail
+# Algorithm: CGP
+
+#-----Common ECJ parameters-----
+# one thread
+evalthreads = 				1
+breedthreads = 				1
+
+#The random seed, value can also be `time`
+#seed.0 =1337
+seed.0 =time
+
+checkpoint = false
+checkpoint-modulo = 1
+checkpoint-prefix = ec
+
+#silent = true
+#-------------------------------
+
+#-----Common CGP parameters-----
+# CGP logs a lot of messages, so we want to avoid storing these in memory.
+nostore = true
+
+print-params = true
+#---------------------------
+
+#-----Evolutionary setup-----
+# ec.Evolve
+state = 				    ec.simple.SimpleEvolutionState
+
+# ec.EvolutionState
+init = 					    ec.simple.SimpleInitializer
+
+# We're using the standard (empty) finalization method
+finish = 	        	    ec.simple.SimpleFinisher
+#finish = 	        	    ec.vre.VREFinisher
+
+# We're using the standard (empty) exchange method
+exch = 					    ec.simple.SimpleExchanger
+
+# We're using standard breeding -- no cross-population breeding
+#breed =					    ec.simple.SimpleBreeder
+breed =					    ec.es.MuCommaLambdaBreeder
+#breed =					    ec.vre.VREBreeder
+
+# We're using standard evaluation -- no coevolution
+eval =					    ec.simple.SimpleEvaluator
+
+# run for 51 generations, quit prematurely if I find something ideal
+generations =				5
+quit-on-run-complete =		false
+
+# ec.Initializer
+pop = 					    ec.Population
+
+# No multiple populations
+pop.subpops =				1
+pop.subpop.0 = 				ec.Subpopulation
+#pop.subpop.0.size =			1
+# don't bother trying to eliminate duplicates from the
+# initial population
+pop.subpop.0.duplicate-retries =	0
+
+# Elitism, default is 0 (no elitism)
+# breed.elite.0 = 			10
+#----------------------------
+
+#-----Problem setup-----
+eval.problem =                                  ec.app.rna.RNAProblemRibozyme
+eval.problem.command =                          /home/user/VRE_Experiment/vrna/VRNA.sh
+#eval.problem.target-phenotype =                 ........(((((....))).)).......
+eval.problem.target-phenotype =                 ...(((((......)))))...(((((....(((....(((((...........)))))...)))..............)))))
+eval.problem.target-genotype =                  YYNNYANNNNRRANNNURNCAANCNUGUGGGGCNUANNNYNNNNNNNNNNNNNNNNNRYRNUNGUGCRGACNUNAAAAUCANGN
+
+
+##############################
+# Representation
+##############################
+pop.subpop.0.size =			                    10000
+es.mu.0 =                                       1000
+es.lambda.0 =                                   10000
+pop.subpop.0.species =                          ec.vector.CharVectorSpecies
+pop.subpop.0.species.fitness =		            ec.simple.SimpleFitness
+pop.subpop.0.species.ind =		                ec.vector.CharVectorIndividual
+pop.subpop.0.species.genome-size = 	            84
+pop.subpop.0.species.alphabet =	                AUCG
+
+
+##############################
+# Operator Pipeline
+##############################
+pop.subpop.0.species.pipe = ec.vector.breed.VectorBaselineMutationPipeline
+vre.baselinemutation.keepbest = false
+vre.baselinemutation.neighborhood = 1
+#pop.subpop.0.species.pipe.source.0 = ec.select.SteadySelection
+pop.subpop.0.species.pipe.source.0 = ec.es.ESSelection
+
+
+# Mutation parameters
+pop.subpop.0.species.mutation-prob =            0.95
+pop.subpop.0.species.mutation-type =            baseline
+
+#-----------------------
+
+#-----Statistics-----
+stat = ec.vre.VREStats
+stat.VRE-CSV = $rnavre.csv
+
+#stat = ec.simple.SimpleStatistics
+#stat.file =	$out.stat
+
+# Export population to file through statistics
+#stat.num-children      = 1
+#stat.child.0           = ec.vre.VREStats
+#stat.child.0.VRE-CSV = $rnavre.csv
+#--------------------

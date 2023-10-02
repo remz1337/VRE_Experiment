@@ -1,6 +1,6 @@
 # Introduction 
-A repo to setup and run experiments. Ultimately run them in parallel on CC cluster.
+A repo to setup and run experiments so they can be run in parallel on a slurm cluster.
 
 # Build
-Specify the experiments to run in sbatch_prepare.sh, sbatch_generate.sh and sbatch_analyze.sh.
-Then run the `run.sh` script
+Prepare the log folder by executing  `reset_slurm_logs.sh`
+Then run the `run.sh` script, passing the experiment to run as an argument (eg. `run.sh 123`)

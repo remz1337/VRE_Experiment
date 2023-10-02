@@ -1,0 +1,214 @@
+# This parameter file supports a simple test example to solve x^4 + x^3 + x^2 + x.
+#
+# The user program provides the data.
+
+
+# ec.Evolve
+# ==============================
+
+# one thread
+evalthreads = 				1
+breedthreads = 				1
+
+# ECJ used to use this as its initial random seed by default.  No longer, now
+# it's assumed to be the wall clock time by default.
+# seed.0 = 				4357
+seed.0 =				time
+
+# ec.EvolutionState
+# ==============================
+
+# We're not writing checkpoint files.  If we were, we'd do it every
+# generation, and the prefix to all the files would be "ec.*"
+checkpoint =				false
+checkpoint-modulo =                     1
+checkpoint-prefix = 			ec
+prefix = 				        ec
+
+# ec.Evolve
+# ==============================
+
+# we want store announcements in memory, so...
+store = 				true
+
+# totally verbose (see ECJ documentation for the various values of verbosity ... 0, 1000, 2000, etc.)
+verbosity = 				0
+
+# flush output immediately, don't buffer it
+flush = 				true
+
+
+
+# simple generational evolution -- don't change this
+state = 				ec.simple.SimpleEvolutionState
+
+# We're using the GEP initialization method (required for GEP problems -- or some modified variation of this)
+init = 					ec.gep.GEPInitializer
+
+# We're using the standard (empty) finalization method by default
+finish = 	        	ec.simple.SimpleFinisher
+
+# We're using the standard (empty) exchange method
+exch = 					ec.simple.SimpleExchanger
+
+# We're using standard breeding -- no cross-population breeding (do NOT change for GEP)
+breed =					ec.simple.SimpleBreeder
+
+# We're using standard evaluation -- no coevolution (do NOT change for GEP)
+eval =					ec.simple.SimpleEvaluator
+
+#fitness-function-ideal-percent-threshold = 99.0
+
+# ec.Population
+# ==============================
+
+pop = 					ec.Population
+
+# No multiple populations for gep so subpops should always be 1
+# and must always use GEPSubpopulation
+pop.subpops =				1
+pop.subpop.0 = 			ec.gep.GEPSubpopulation
+
+
+# ec.Subpopulation
+# ==============================
+# don't bother trying to eliminate duplicates from the
+# initial population
+pop.subpop.0.duplicate-retries =	0
+
+# Do try to get initial population with non-zero fitness values.
+# This tries to ensure we start with a population that has few poor
+# individuals with a fitness value of zero.
+pop.subpop.0.zero-fitness-retries = 10
+
+# You might change the species, but it must be a GEPSpeciesForm!
+pop.subpop.0.species = 			  ec.gep.GEPSpecies
+
+# Must have GEPIndividuals!
+pop.subpop.0.species.ind = 		ec.gep.GEPIndividual
+
+# may want to turn on/off simplifying expressions when human readable form of individual is printed
+# (careful since the meditor.jar file must be in start directory and it has been know to cause
+# crashes or no terminating loops for some expressions)
+pop.subpop.0.species.ind.simplify-expressions = false
+
+# use SimpleFitness for the subpop
+pop.subpop.0.species.fitness =			ec.simple.SimpleFitness
+
+
+# ec.Species
+# ==============================
+# standard defaults for the evolutionary parameters as suggested by Ferreira
+gep.species.inversion-prob         = 0.1
+gep.species.mutation-prob          = 0.1
+gep.species.istransposition-prob   = 0.1
+gep.species.ristransposition-prob  = 0.1
+gep.species.onepointrecomb-prob    = 0.3
+gep.species.twopointrecomb-prob    = 0.3
+gep.species.generecomb-prob        = 0.1
+gep.species.genetransposition-prob = 0.1
+
+# Constants can not be used with Logical problem types ... will be ignored if specified
+gep.species.use-constants             = false
+# examples for constants if used
+# gep.species.numconstantspergene       = 10
+# gep.species.integer-constants         = true
+# gep.species.constants-lowerlimit      = 0
+# gep.species.constants-upperlimit      = 100
+# can always default to these values as suggested by Ferreira
+gep.species.rnc-mutation-prob         = 0.01
+gep.species.dc-mutation-prob          = 0.044
+gep.species.dc-inversion-prob         = 0.1
+gep.species.dc-istransposition-prob   = 0.1
+
+# Do NOT change the species symbolset... must be GEPSymbolSet
+gep.species.symbolset   = ec.gep.GEPSymbolSet
+
+# symbolset.name is not actually used since we only have one symbol
+# set at this time BUT a name must be specified so do it in the default params
+gep.species.symbolset.name = ss0
+
+
+# For GEP systems breeding should be as shown below ... changing them
+# is possible but will not be as per original gep by Ferreira (as in GeneXProTools)
+#gep.species.pipe = ec.gep.breed.DcGeneticOperatorsPipeline
+#gep.dcgeneticoperators.source.0 = ec.gep.breed.GenerecombinationPipeline
+#gep.generecombination.source.0 = ec.gep.breed.TwopointrecombinationPipeline
+#gep.twopointrecombination.source.0 = ec.gep.breed.OnepointrecombinationPipeline
+#gep.onepointrecombination.source.0 = ec.gep.breed.GenetranspositionPipeline
+#gep.genetransposition.source.0 = ec.gep.breed.RIStranspositionPipeline
+#gep.RIStransposition.source.0 = ec.gep.breed.IStranspositionPipeline
+#gep.IStransposition.source.0 = ec.gep.breed.InversionPipeline
+#gep.inversion.source.0 = ec.gep.breed.MutationPipeline
+#gep.mutation.source.0 = ec.gep.breed.GEPBaselineMutationPipeline
+
+gep.species.pipe = ec.gep.breed.GEPBaselineMutationPipeline
+# FitProportionateSelection (roulette selection) is used exclusively by Ferreira - could be changed
+gep.baselinemutation.source.0 = ec.select.SteadySelection
+
+#pop.subpop.0.species.pipe = ec.vector.breed.VectorBaselineMutationPipeline
+#pop.subpop.0.species.pipe.source.0 = ec.select.SteadySelection
+
+vre.baselinemutation.keepbest = true
+vre.baselinemutation.neighborhood = 1
+
+
+# 1 is the default and only value used by Ferreira (could be changed to operate differently than Ferreira
+# or to make sure we have the k best individuals in the final generation)
+breed.elite.0 = 0
+
+# Problem
+#===============================
+eval.problem = ec.app.gep.SymbolicRegression.SymbolicRegression_Eb
+#eval.problem.target-phenotype =                 ...)(....
+
+
+# run for 50 generations, quit prematurely if I find something ideal
+generations =				500
+quit-on-run-complete =			true
+
+
+# ec.Subpopulation
+# ==============================
+
+# subpop size is 30 individuals
+pop.subpop.0.size =			1
+
+# may want to turn on/off simplifying expressions when human readable form of individual is printed
+# (careful since the meditor.jar file must be in start directory and it has been know to cause
+# crashes or no terminating loops for some expressions)
+#pop.subpop.0.species.ind.simplify-expressions = false
+
+# ec.Species
+# ==============================
+
+gep.species.numchromosomes = 1
+gep.species.numgenes = 1
+gep.species.gene-headsize = 30
+
+gep.species.gene-linking-function = +
+
+# Problem type must be one of: functionfinding, classification, timeseries, logical
+# Set default to be 'unknown' so user is forced to specify in the problem params file 
+gep.species.problemtype = functionfinding
+
+gep.species.symbolset.terminalsize = 1
+gep.species.symbolset.terminal.0 = x
+gep.species.symbolset.functionsize = 4
+gep.species.symbolset.function.0 = Add
+gep.species.symbolset.function.0.weight = 1
+gep.species.symbolset.function.1 = Sub
+gep.species.symbolset.function.1.weight = 1
+gep.species.symbolset.function.2 = Mul
+gep.species.symbolset.function.2.weight = 1
+gep.species.symbolset.function.3 = Div
+gep.species.symbolset.function.3.weight = 1
+
+
+# Statistics
+# ==============================
+stat = ec.vre.VREStats
+stat.VRE-CSV = $gepvre.csv
+
+
+

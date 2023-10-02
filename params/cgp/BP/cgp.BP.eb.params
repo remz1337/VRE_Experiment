@@ -1,0 +1,184 @@
+# I log a lot of messages, so we want to avoid storing these in memory.
+nostore = true
+
+#print-params = true
+#generations = 999999999
+
+#================================================================================
+# Set up multi-threading.  TODO: test all experiments for thread safety.
+#================================================================================
+evalthreads = 1
+breedthreads = 1
+seed.0 = time
+#seed.0 = 1234
+
+
+# ec.EvolutionState
+# ==============================
+
+# We're not writing checkpoint files.  If we were, we'd do it every
+# generation, and the prefix to all the files would be "ec.*"
+checkpoint =				false
+checkpoint-modulo =                     1
+checkpoint-prefix = 			ec
+
+
+
+# ec.Evolve
+# ==============================
+
+# simple generational evolution
+state = 				    ec.simple.SimpleEvolutionState
+
+
+
+# ec.EvolutionState
+# ==============================
+
+# We're using the standard initialization method
+init = 					    ec.simple.SimpleInitializer
+
+# We're using the standard (empty) finalization method
+finish = 	        	    ec.simple.SimpleFinisher
+#finish = 	        	    ec.vre.VREFinisher
+
+# We're using the standard (empty) exchange method
+exch = 					    ec.simple.SimpleExchanger
+
+# We're using standard breeding -- no cross-population breeding
+breed =					    ec.simple.SimpleBreeder
+
+# We're using standard evaluation -- no coevolution
+eval =					    ec.simple.SimpleEvaluator
+
+# We're using simple statistics
+stat =					    ec.simple.SimpleStatistics
+
+# run for 51 generations, quit prematurely if I find something ideal
+generations =				500
+quit-on-run-complete =		true
+
+
+# ec.Initializer
+# ==============================
+
+pop = 					    ec.Population
+
+
+# ec.Population
+# ==============================
+
+# No multiple populations
+pop.subpops =				1
+pop.subpop.0 = 				ec.Subpopulation
+
+
+# ec.Subpopulation
+# ==============================
+
+# subpop size is 1024 individuals
+#pop.subpop.0.size =			10
+# don't bother trying to eliminate duplicates from the
+# initial population
+pop.subpop.0.duplicate-retries =	5
+
+# ==You need to provide the species info for the subpopulation.==
+
+# ec.simple.SimpleBreeder
+# ==============================
+
+# By default elitism isn't done.  If you want to do elitism for, say,
+# the top 10 individuals in subpopulation 0, you'd say:
+
+# breed.elite.0 = 			10
+
+
+#es.mu.0 =				    1
+#es.lambda.0 =				10
+#breed =					    ec.es.MuCommaLambdaBreeder
+#breed = ec.cgp.MuLambdaBreederCGP
+#es.mu.0 = 1
+#es.lambda.0 = 4
+
+
+#================================================================================
+# Set up population
+#================================================================================
+pop.subpops = 1
+pop.subpop.0 = ec.Subpopulation
+
+#================================================================================
+# Initial population size is set to mu+lambda.  Be sure to change this if you 
+# modify es.mu and es.lambda.
+#================================================================================
+pop.subpop.0.size = 1
+pop.subpop.0.species = ec.cgp.representation.IntegerVectorSpeciesCGP
+pop.subpop.0.species.ind = ec.cgp.representation.IntegerVectorIndividualCGP
+
+#================================================================================
+# Our own fitness.  A simple modification that makes smaller fitnesses better.
+#================================================================================
+pop.subpop.0.species.fitness = ec.cgp.FitnessCGP
+
+#================================================================================
+# A 4% mutation rate seems effective for this problem.
+#================================================================================
+pop.subpop.0.species.mutation-prob = .04
+
+
+#================================================================================
+# Function lookup table class for use by the CGP function evaluator.
+# This class is expected to implement CGPFunctions.
+#================================================================================
+pop.subpop.0.species.functions = ec.cgp.functions.FunctionsParity
+
+# number of functions in your lookup table
+pop.subpop.0.species.num-functions = 5   
+
+# number of nodes in your CGP, not including inputs and outputs.
+pop.subpop.0.species.nodes = 20
+
+# number of input nodes in your CGP.  Your problem class feeds these inputs to the CGPEvaluator. 
+pop.subpop.0.species.inputs = 4
+
+# number of output nodes in your CGP.  Your problem class extracts these outputs from the CGPEvaluator.
+pop.subpop.0.species.outputs = 1  
+
+# max number of inputs for all functions in your function lookup table.
+pop.subpop.0.species.maxArity = 2  
+
+#================================================================================
+# The breeding pipeline is a simple mu+lambda ES.  First, the best individual is 
+# selected uniformly at random from all individuals sharing the top fitness.  
+# This is done via ESSelectionCGP, our customization of ESSelection that performs
+# the random selection.  This individual becomes the parent from which the next 
+# generation's children are bred.  The children are generated via mutations of 
+# the parent.  No crossover is used.
+#================================================================================
+#pop.subpop.0.species.pipe = ec.vector.breed.VectorMutationPipeline
+#pop.subpop.0.species.pipe.source.0 = ec.cgp.ESSelectionCGP
+pop.subpop.0.species.pipe = ec.vector.breed.VectorBaselineMutationPipeline
+pop.subpop.0.species.mutation-type = baseline
+vre.baselinemutation.keepbest = true
+vre.baselinemutation.neighborhood = 1
+pop.subpop.0.species.pipe.source.0 = ec.select.SteadySelection
+
+
+ 
+
+#================================================================================
+# Class that sets up the parity problem.  Invokes the CGPEvaluator on all
+# possible boolean inputs.  The CGPEvaluator computes the output value of the 
+# function represented by the genome.  
+#================================================================================
+eval.problem = ec.cgp.problems.ProblemParity_Eb
+
+#================================================================================
+# Our custom stats class prints out newly discovered best-of run individuals
+# as they are discovered.
+#================================================================================
+#stat = ec.cgp.Stats
+stat =   ec.vre.VREStats
+stat.VRE-CSV = $cgp.csv
+
+eval.problem.target-phenotype =   {ABC}

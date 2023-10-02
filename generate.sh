@@ -6,11 +6,14 @@
 ROOT_FOLDER=$PWD
 EXPERIMENT_ID=$1
 
+LOAD_VARIABLES="$ROOT_FOLDER/load_variables.sh"
+source $LOAD_VARIABLES
+
 #INVERSERNA_NAME="IMAP"
 #SYSTEM_INTEGER_LIMIT=2147483647
 #MAX_GENERATIONS_WITH_BUFFER=2045222520
 #it's 10000, but using 9000 just in case
-MAX_SLURM_ARRAY_SIZE=9000
+#MAX_SLURM_ARRAY_SIZE=9000
 
 #Common filenames
 #INITIAL_VRE_POPULATION_FILENAME="rnavre.csv"
@@ -27,14 +30,14 @@ MAX_SLURM_ARRAY_SIZE=9000
 #VRNA_PHENOTYPE_GENERATOR="$ROOT_FOLDER/utils/RNA_PhenotypeGenerator.sh"
 #VRE_MATH_HELPER="$ROOT_FOLDER/utils/VRE_MathHelper"
 #VRE_PHENOTYPE_GENERATOR="$ROOT_FOLDER/utils/VRE_PhenotypeGenerator"
-SBATCH_JAVA_VRE="$ROOT_FOLDER/sbatch_generate_job_vre.sh"
-SBATCH_JAVA_BASELINE="$ROOT_FOLDER/sbatch_generate_job_baseline.sh"
+#SBATCH_JAVA_VRE="$ROOT_FOLDER/sbatch_generate_job_vre.sh"
+#SBATCH_JAVA_BASELINE="$ROOT_FOLDER/sbatch_generate_job_baseline.sh"
 #MYSQL_EXEC="$ROOT_FOLDER/mysql_exec.sh"
-PREPARE_LOAD="$ROOT_FOLDER/prepare_load.sh"
+#PREPARE_LOAD="$ROOT_FOLDER/prepare_load.sh"
 
 #ECJ Variables
-RNG_SEED=time
-BASELINE_KEEP_BEST=false
+#RNG_SEED=time
+#BASELINE_KEEP_BEST=false
 
 #RNAInverse
 #INVERSE_REPEAT=50
@@ -77,12 +80,47 @@ PENDING_JOB_COUNT=$($MYSQL_EXEC "select count(j.ID) as job_count from $JOB_TABLE
 JOB_ID_ARRAY="1-$PENDING_JOB_COUNT"
 #JOB_ID_ARRAY="1-$MAX_SAMPLES"
 
+#Limit the number of simultaneous jobs (because of MySQL connections AND CC user QoS limit)
 if [ $PENDING_JOB_COUNT -gt $MAX_SLURM_ARRAY_SIZE ]; then
 	JOB_ID_ARRAY="1-$MAX_SLURM_ARRAY_SIZE"
 fi
 
-#Limit the number of simultaneous jobs (because of MySQL connections)
 JOB_ID_ARRAY="$JOB_ID_ARRAY"
 
+#Dynamically adjust time needs, based on population size and number of generation
+JOB_TIME="00-02:00:00"
+EXP_SCALE=$((POPULATION_SIZE * GENERATIONS))
+
+echo "GENERATIONS:$GENERATIONS"
+echo "POPULATION_SIZE:$POPULATION_SIZE"
+echo "EXP_SCALE:$EXP_SCALE"
+echo "JOB_TIME:$JOB_TIME"
+
+#Only need to scale for VRE
+#if [ "$EXPERIMENT_TYPE" == "vre" ]; then
+#	if [ $EXP_SCALE -ge 1000000 ]; then 
+#		JOB_TIME="01-06:00:00"
+#	elif [ $EXP_SCALE -ge 100000 ]; then 
+#		JOB_TIME="00-12:00:00"
+#	elif [ $EXP_SCALE -ge 10000 ]; then 
+#		JOB_TIME="00-04:00:00"
+#	else
+#		JOB_TIME="00-08:00:00"
+#	fi
+#fi
+
+if [ $EXP_SCALE -ge 1000000 ]; then 
+	JOB_TIME="01-12:00:00"
+elif [ $EXP_SCALE -ge 100000 ]; then 
+	JOB_TIME="01-00:00:00"
+elif [ $EXP_SCALE -ge 10000 ]; then 
+	JOB_TIME="00-06:00:00"
+else
+	JOB_TIME="00-08:00:00"
+fi
+
+
+echo "JOB_TIME:$JOB_TIME"
+
 #Ensure same variable name is used by calling script
-GENERATE_JOB_ID=$(sbatch --parsable --array=$JOB_ID_ARRAY $SBATCH_JAVA $EXPERIMENT_ID)
+GENERATE_JOB_ID=$(sbatch --parsable --time=$JOB_TIME --array=$JOB_ID_ARRAY $SBATCH_JAVA $EXPERIMENT_ID)

@@ -33,8 +33,22 @@ echo "SAMPLE_JOB_ARRAY:$SAMPLE_JOB_ARRAY"
 #Limit the number of simultaneous jobs (because of MySQL connections)
 #SAMPLE_JOB_ARRAY="$SAMPLE_JOB_ARRAY"
 
+
+#Dynamically adjust memory needs, based on population size and number of generation
+JOB_TIME="00-04:00:00"
+if [ "$ALGORITHM_NAME" == "$INVERSERNA_NAME" ]; then
+	if [ $MAX_WALKS -ge 1000 ]; then 
+		JOB_TIME="01-12:00:00"
+	elif [ $MAX_WALKS -ge 100 ]; then 
+		JOB_TIME="00-12:00:00"
+	else
+		JOB_TIME="00-06:00:00"
+	fi
+fi
+
+
 #Ensure same variable name is used by calling script
-SAMPLE_JOB_ID=$(sbatch --parsable --array=$SAMPLE_JOB_ARRAY $SBATCH_PREPARE_SAMPLE $EXPERIMENT_ID)
+SAMPLE_JOB_ID=$(sbatch --time=$JOB_TIME --parsable --array=$SAMPLE_JOB_ARRAY $SBATCH_PREPARE_SAMPLE $EXPERIMENT_ID)
 
 GENERATE_JOB_ID=$(sbatch --parsable --dependency=afterok:$SAMPLE_JOB_ID $SBATCH_GENERATE $EXPERIMENT_ID)
 

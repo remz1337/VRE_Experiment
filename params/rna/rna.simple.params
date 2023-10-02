@@ -67,9 +67,7 @@ pop.subpop.0.duplicate-retries =	5
 
 #-----Problem setup-----
 eval.problem =                                  ec.app.rna.RNAProblem
-#eval.problem.command =                          path/to/repo/VRE_Experiment/vrna/VRNA.bat
-#eval.problem.command =                          path/to/repo/VRE_Experiment/vrna/VRNA.sh
-eval.problem.command =                          path/to/repo/VRE_Experiment/vrna/VRNA.sh
+eval.problem.command =                          /home/user/VRE_Experiment/vrna/VRNA.sh
 #eval.problem.target-phenotype =                 ........(((((....))).)).......
 #Use impossible phenotype by default for baseline robustness
 eval.problem.target-phenotype =                 ).(.).(

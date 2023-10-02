@@ -1,6 +1,6 @@
 #!/bin/sh
 ##SBATCH --job-name=SINGLETON
-#SBATCH --time=00-08:00:00
+#SBATCH --time=01-04:00:00
 #SBATCH --account=slurm-account
 #SBATCH --mail-user=myemail@email.com
 ### Too many jobs, don't email for successful ones (array should notify only for entire array)
@@ -10,7 +10,8 @@
 #SBATCH --mail-type=REQUEUE
 #SBATCH --mail-type=ALL
 #SBATCH --cpus-per-task=2
-#SBATCH --mem-per-cpu=10G
+##SBATCH --mem-per-cpu=12G
+#SBATCH --mem=24G
 #Too many logs
 ##SBATCH --output=slurm/generate_vre/slurm-%j.out
 ##SBATCH --error=slurm/generate_vre/slurm-%j.err

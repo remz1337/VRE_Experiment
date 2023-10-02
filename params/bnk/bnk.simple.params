@@ -100,8 +100,6 @@ pop.subpop.0.species.mutation-type = baseline
 pop.subpop.0.species.mutation-prob = 0.05
 #pop.subpop.0.species.crossover-type =two
 
-#pop.file = path/to/repo/ecj_bnk/ecj/population.in
-
 ##############################
 # Logging
 ##############################

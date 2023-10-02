@@ -1,5 +1,4 @@
 #Example command line arguments
-#-c path\to\repo\VRE_Experiment\mysql_creds.env -f path\to\repo\VRE_Experiment\experiments -e 55
 
 import mysql.connector
 import pandas as pd
@@ -43,6 +42,8 @@ from matplotlib.offsetbox import AnchoredText
 
 from mpl_toolkits.axes_grid1.inset_locator import zoomed_inset_axes
 from mpl_toolkits.axes_grid1.inset_locator import mark_inset
+
+from sys import float_info
 
 #Uncomment this to fix matplotlib failling to allocate bitmap due to out of bound integer (happens on Windows with Visual studio)
 #matplotlib.use('agg')
@@ -168,7 +169,7 @@ def RetrieveBRWalkData(mysql_config,walk_id):
         statement = 'select ID, combinations_count, combinations_genotype_distance_mean, combinations_phenotype_distance_mean,' \
             ' combinations_covariance_0_0,combinations_covariance_0_1,combinations_covariance_1_0,combinations_covariance_1_1,' \
             ' combinations_eigen_value_0,combinations_eigen_value_1,' \
-            ' combinations_eigen_vector_0_0,combinations_eigen_vector_0_1,combinations_eigen_vector_1_0,combinations_eigen_vector_1_1, ellipse_angle, r_squared' \
+            ' combinations_eigen_vector_0_0,combinations_eigen_vector_0_1,combinations_eigen_vector_1_0,combinations_eigen_vector_1_1, ellipse_angle, r_squared, aspect_ratio, orientation' \
             ' from baseline_robustness where fk_walk_id = %(walk_id)s'
         parameters={"walk_id":walk_id}
         
@@ -183,8 +184,8 @@ def RetrieveBRWalkData(mysql_config,walk_id):
 
 def RetrieveBRSampleData(mysql_config,sample_id):
     try:
-        statement = 'select ID, genotype_distance_mean, phenotype_distance_mean, eigen_value_0_mean, eigen_value_1_mean, ellipse_angle_mean, r_squared_mean,' \
-            ' genotype_distance_variance, phenotype_distance_variance, eigen_value_0_variance, eigen_value_1_variance, ellipse_angle_variance, r_squared_variance' \
+        statement = 'select ID, genotype_distance_mean, phenotype_distance_mean, eigen_value_0_mean, eigen_value_1_mean, ellipse_angle_mean, r_squared_mean, aspect_ratio_mean, orientation_mean,' \
+            ' genotype_distance_variance, phenotype_distance_variance, eigen_value_0_variance, eigen_value_1_variance, ellipse_angle_variance, r_squared_variance, aspect_ratio_variance, orientation_variance' \
             ' from sample_baseline_robustness where fk_sample_id = %(sample_id)s'
         parameters={"sample_id":sample_id}
         
@@ -199,7 +200,7 @@ def RetrieveBRSampleData(mysql_config,sample_id):
 
 def RetrieveBEWalkData(mysql_config,walk_id):
     try:
-        statement = "select ID, value as baseline_value from baseline_evolvability where fk_walk_id = %(walk_id)s"
+        statement = "select ID, value as baseline_value, final_fitness from baseline_evolvability where fk_walk_id = %(walk_id)s"
         parameters={"walk_id":walk_id}
         
         engine_str="mysql+mysqlconnector://"+mysql_config["user"]+":"+mysql_config["password"]+"@"+mysql_config["host"]+":"+mysql_config["port"]+"/"+mysql_config["database"]
@@ -225,6 +226,22 @@ def RetrieveBESampleData(mysql_config,sample_id):
         print("Caught exception:" + str(e))
         print(traceback.format_exc())
     return df_record
+
+def UpdateBRSampleData(mysql_config,orientation,aspect_ratio,sample_id):
+    try:
+        #UPDATE sample_baseline_robustness SET sample_orientation=%(orientation)s,sample_aspect_ratio=%(aspect_ratio)s WHERE fk_sample_ID=%(sample_id)s
+        statement = 'UPDATE sample_baseline_robustness SET sample_orientation=%(orientation)s,sample_aspect_ratio=%(aspect_ratio)s WHERE fk_sample_ID=%(sample_id)s'
+        parameters={"orientation":float(orientation),"aspect_ratio":float(aspect_ratio),"sample_id":sample_id}
+        
+        engine_str="mysql+mysqlconnector://"+mysql_config["user"]+":"+mysql_config["password"]+"@"+mysql_config["host"]+":"+mysql_config["port"]+"/"+mysql_config["database"]
+        engine = create_engine(engine_str, echo=False)
+        result = engine.execute(statement,parameters)
+        #df_record=pd.read_sql_query(statement, engine, params=parameters,)
+    except Exception as e:
+        print("Failed to read MySQL table")
+        print("Caught exception:" + str(e))
+        print(traceback.format_exc())
+    return result
 
 def PlotBNKWalkSystemAndSTD(pop_folder,BNK_gates,BNK_inputs):
     #https://stackoverflow.com/questions/47153044/python-transitions-how-to-map-all-possible-transitions-of-an-fsm-to-a-graph
@@ -442,9 +459,9 @@ def PlotBNKLandscape(pop_folder,BNK_gates,BNK_inputs):
     if set(['Connectivity','Functionality']).issubset(pop_data.columns):
         fig, ax = plt.subplots(subplot_kw={"projection": "3d"})
 
-        ax.set_xlabel('Connectivity')
-        ax.set_ylabel('Functionality')
-        ax.set_zlabel('Fitness')
+        ax.set_xlabel('connectivity')
+        ax.set_ylabel('functionality')
+        ax.set_zlabel('fitness')
 
         ax.view_init(25,-135)
 
@@ -577,10 +594,12 @@ def PlotFitnessLandscapeMultiModality(walk_folder,BNK_gates,BNK_inputs):
 
 
     # the axis needs to be swapped (probably something to do with the custom matrix used to detect the peaks, investigate later...)
-    #plt.xlabel(X_AXIS)
-    #plt.ylabel(Y_AXIS)
-    plt.xlabel(Y_AXIS)
-    plt.ylabel(X_AXIS)
+    ##plt.xlabel(X_AXIS)
+    ##plt.ylabel(Y_AXIS)
+    #plt.xlabel(Y_AXIS)
+    #plt.ylabel(X_AXIS)
+    plt.xlabel("connectivity")    #Y_AXIS="Connectivity"
+    plt.ylabel("functionality")    #X_AXIS="Functionality"
 
     detected_peaks = detect_peaks(peaks_img)
     number_of_peaks=detected_peaks.sum()
@@ -616,6 +635,14 @@ def PlotFitnessLandscapeMultiModality(walk_folder,BNK_gates,BNK_inputs):
     #plt.imshow(peaks_img, cmap=cm.PuRd)
     ax2=plt.gca()
     ax2.imshow(peaks_img, cmap=cm.PuRd, origin="lower")
+
+    #Add Estimated #of peaks on plot as txt
+    peaks_txt="$\\Sigma$ = "+str(int(estimated_total_peaks))
+    #props = dict(boxstyle="round", fc="w", ec="0.5", alpha=0.9)
+    text_box = AnchoredText(peaks_txt, frameon=True, loc='upper right', pad=0.5)
+    text_box.patch.set_boxstyle("round,pad=0.,rounding_size=0.2")
+    plt.setp(text_box.patch, facecolor='white', alpha=0.8)
+    ax2.add_artist(text_box)
 
 #source:https://stackoverflow.com/questions/13583153/how-to-zoomed-a-portion-of-image-and-insert-in-the-same-plot-in-matplotlib
 
@@ -682,6 +709,8 @@ def PlotFitnessLandscapeMultiModality(walk_folder,BNK_gates,BNK_inputs):
         ax2.set_yticklabels(y_labels)
     except ValueError :
         pass
+
+    plt.tight_layout()
 
     plt.savefig(destination_file+PLOT_EXTENSION)
     plt.close()
@@ -868,7 +897,7 @@ def PlotVREWalk_Eg(df_walk_data, walk_folder):
 
     ax_eg.plot(df_walk_data["neighborhood_distance"],df_walk_data["local_genotype_evolvability"],'--o')
     ax_eg.set_xlabel("neighborhood")
-    ax_eg.set_ylabel("genotype evolvability")
+    ax_eg.set_ylabel("genotype evolvability $E_g$")
 
     plt.tight_layout()
 
@@ -895,7 +924,7 @@ def PlotVREWalk_Rg(df_walk_data, walk_folder):
 
     ax_rg.plot(df_walk_data["neighborhood_distance"],df_walk_data["local_genotype_robustness"],'--o')
     ax_rg.set_xlabel("neighborhood")
-    ax_rg.set_ylabel("genotype robustness")
+    ax_rg.set_ylabel("genotype robustness $R_g$")
 
 
     plt.tight_layout()
@@ -923,7 +952,7 @@ def PlotVREWalk_Rp(df_walk_data, walk_folder):
 
     ax_rp.plot(df_walk_data["neighborhood_distance"],df_walk_data["local_phenotype_robustness"],'--o')
     ax_rp.set_xlabel("neighborhood")
-    ax_rp.set_ylabel("phenotype robustness")
+    ax_rp.set_ylabel("phenotype robustness $R_p$")
 
     plt.tight_layout()
 
@@ -986,7 +1015,7 @@ def PlotVREWalk_NN(df_walk_data, walk_folder):
     # added these three lines
     ax_nn_lines = ax_nn_line + ax_nn_var_line
     labs = [line.get_label() for line in ax_nn_lines]
-    ax_nn_var.legend(ax_nn_lines, labs)
+    ax_nn_var.legend(ax_nn_lines, labs, loc='upper right')
 
     plt.tight_layout()
 
@@ -1026,7 +1055,7 @@ def PlotVREWalk_Unique(df_walk_data, walk_folder):
     # added these three lines
     ax_up_lines = ax_up_line + ax_up_var_line
     labs = [line.get_label() for line in ax_up_lines]
-    ax_up_var.legend(ax_up_lines, labs)
+    ax_up_var.legend(ax_up_lines, labs, loc='upper right')
 
     plt.tight_layout()
 
@@ -1064,7 +1093,7 @@ def PlotVRESampleVariancePerNeighborhood(sample_folder):
         ax_rg.errorbar(pop_variance_data["count"], pop_variance_data["mean_genotype_robustness"], yerr=pop_variance_data["variance_genotype_robustness"], label='mean',  ecolor='silver')
         #ax_rg.set_title("Genotype robustness")
         ax_rg.set_xlabel("walks")
-        ax_rg.set_ylabel("genotype robustness")
+        ax_rg.set_ylabel("genotype robustness $R_g$")
         #ax_rg.legend()
 
 
@@ -1081,7 +1110,7 @@ def PlotVRESampleVariancePerNeighborhood(sample_folder):
         ax_eg.errorbar(pop_variance_data["count"], pop_variance_data["mean_genotype_evolvability"], yerr=pop_variance_data["variance_genotype_evolvability"], label='mean',  ecolor='silver')
         #ax_eg.set_title("Genotype evolvability")
         ax_eg.set_xlabel("walks")
-        ax_eg.set_ylabel("genotype evolvability")
+        ax_eg.set_ylabel("genotype evolvability $E_g$")
         #ax_eg.legend()
 
 
@@ -1097,7 +1126,7 @@ def PlotVRESampleVariancePerNeighborhood(sample_folder):
         ax_rp.errorbar(pop_variance_data["count"], pop_variance_data["mean_phenotype_robustness"], yerr=pop_variance_data["variance_phenotype_robustness"], label='mean',  ecolor='silver')
         #ax_rp.set_title("Phenotype robustness")
         ax_rp.set_xlabel("walks")
-        ax_rp.set_ylabel("phenotype robustness")
+        ax_rp.set_ylabel("phenotype robustness $R_p$")
         #ax_rp.legend()
 
 
@@ -1113,7 +1142,7 @@ def PlotVRESampleVariancePerNeighborhood(sample_folder):
         ax_ep.errorbar(pop_variance_data["count"], pop_variance_data["mean_phenotype_evolvability"], yerr=pop_variance_data["variance_phenotype_evolvability"], label='mean',  ecolor='silver')
         #ax_ep.set_title("Phenotype evolvability")
         ax_ep.set_xlabel("walks")
-        ax_ep.set_ylabel("phenotype evolvability")
+        ax_ep.set_ylabel("phenotype evolvability $E_p$")
         #ax_ep.legend()
 
 
@@ -1162,7 +1191,7 @@ def PlotVRESampleVariancePerNeighborhood(sample_folder):
 
     return
 
-def PlotVRESampleVarianceAllNeighborhoods(sample_folder):
+def PlotVRESampleAllNeighborhoods(sample_folder):
     variance_files_prefix=sample_folder+"/vre_sample_variance_tracking_N*.csv"
     variance_files = glob.glob(variance_files_prefix)
 
@@ -1178,28 +1207,28 @@ def PlotVRESampleVarianceAllNeighborhoods(sample_folder):
     ax_rg = fig_rg.gca()
     #ax_rg.set_title("Genotype robustness")
     ax_rg.set_xlabel("walks")
-    ax_rg.set_ylabel("genotype robustness")
+    ax_rg.set_ylabel("genotype robustness $R_g$")
     
     #ax_eg = plt.subplot(gs[0, 1])
     fig_eg = plt.figure(2)
     ax_eg = fig_eg.gca()
     #ax_eg.set_title("Genotype evolvability")
     ax_eg.set_xlabel("walks")
-    ax_eg.set_ylabel("genotype evolvability")
+    ax_eg.set_ylabel("genotype evolvability $E_g$")
     
     #ax_rp = plt.subplot(gs[1, 0])
     fig_rp = plt.figure(3)
     ax_rp = fig_rp.gca()
     #ax_rp.set_title("Phenotype robustness")
     ax_rp.set_xlabel("walks")
-    ax_rp.set_ylabel("phenotype robustness")
+    ax_rp.set_ylabel("phenotype robustness $R_p$")
     
     #ax_ep = plt.subplot(gs[1, 1])
     fig_ep = plt.figure(4)
     ax_ep = fig_ep.gca()
     #ax_ep.set_title("Phenotype evolvability")
     ax_ep.set_xlabel("walks")
-    ax_ep.set_ylabel("phenotype evolvability")
+    ax_ep.set_ylabel("phenotype evolvability $E_p$")
     
     #https://matplotlib.org/stable/gallery/lines_bars_and_markers/linestyles.html
     #All our experiments are limited to N<=5, so should be enough
@@ -1228,19 +1257,124 @@ def PlotVRESampleVarianceAllNeighborhoods(sample_folder):
 
     ax_rg_handles, ax_rg_labels = ax_rg.get_legend_handles_labels()
     ax_rg_labels, ax_rg_handles = zip(*sorted(zip(ax_rg_labels, ax_rg_handles), key=lambda t: t[0]))
-    ax_rg.legend(ax_rg_handles, ax_rg_labels)
+    ax_rg.legend(ax_rg_handles, ax_rg_labels, loc='upper right')
 
     ax_eg_handles, ax_eg_labels = ax_eg.get_legend_handles_labels()
     ax_eg_labels, ax_eg_handles = zip(*sorted(zip(ax_eg_labels, ax_eg_handles), key=lambda t: t[0]))
-    ax_eg.legend(ax_eg_handles, ax_eg_labels)
+    ax_eg.legend(ax_eg_handles, ax_eg_labels, loc='upper right')
 
     ax_rp_handles, ax_rp_labels = ax_rp.get_legend_handles_labels()
     ax_rp_labels, ax_rp_handles = zip(*sorted(zip(ax_rp_labels, ax_rp_handles), key=lambda t: t[0]))
-    ax_rp.legend(ax_rp_handles, ax_rp_labels)
+    ax_rp.legend(ax_rp_handles, ax_rp_labels, loc='upper right')
 
     ax_ep_handles, ax_ep_labels = ax_ep.get_legend_handles_labels()
     ax_ep_labels, ax_ep_handles = zip(*sorted(zip(ax_ep_labels, ax_ep_handles), key=lambda t: t[0]))
-    ax_ep.legend(ax_ep_handles, ax_ep_labels)
+    ax_ep.legend(ax_ep_handles, ax_ep_labels, loc='upper right')
+
+    plt.figure(1)
+    plt.tight_layout()
+    plt.savefig(destination_file+"_Rg"+PLOT_EXTENSION)
+    plt.close(1)
+
+    plt.figure(2)
+    plt.tight_layout()
+    plt.savefig(destination_file+"_Eg"+PLOT_EXTENSION)
+    plt.close(2)
+
+    plt.figure(3)
+    plt.tight_layout()
+    plt.savefig(destination_file+"_Rp"+PLOT_EXTENSION)
+    plt.close(3)
+
+    plt.figure(4)
+    plt.tight_layout()
+    plt.savefig(destination_file+"_Ep"+PLOT_EXTENSION)
+    plt.close(4)
+
+    plt.close()
+
+    return
+
+
+def PlotVRESampleVarianceAllNeighborhoods(sample_folder):
+    variance_files_prefix=sample_folder+"/vre_sample_variance_tracking_N*.csv"
+    variance_files = glob.glob(variance_files_prefix)
+
+    variance_files.sort()
+
+    #destination_file=sample_folder+"/VRE_plot_ALL"+PLOT_EXTENSION
+    destination_file=sample_folder+"/VRE_plot_variance_ALL"
+
+    #gs = gridspec.GridSpec(2, 2)
+    
+    #ax_rg = plt.subplot(gs[0, 0])
+    fig_rg = plt.figure(1)
+    ax_rg = fig_rg.gca()
+    #ax_rg.set_title("Genotype robustness")
+    ax_rg.set_xlabel("walks")
+    ax_rg.set_ylabel("genotype robustness variance $\\sigma^{2}_{R_g}$")
+    
+    #ax_eg = plt.subplot(gs[0, 1])
+    fig_eg = plt.figure(2)
+    ax_eg = fig_eg.gca()
+    #ax_eg.set_title("Genotype evolvability")
+    ax_eg.set_xlabel("walks")
+    ax_eg.set_ylabel("genotype evolvability variance $\\sigma^{2}_{E_g}$")
+    
+    #ax_rp = plt.subplot(gs[1, 0])
+    fig_rp = plt.figure(3)
+    ax_rp = fig_rp.gca()
+    #ax_rp.set_title("Phenotype robustness")
+    ax_rp.set_xlabel("walks")
+    ax_rp.set_ylabel("phenotype robustness variance $\\sigma^{2}_{R_p}$")
+    
+    #ax_ep = plt.subplot(gs[1, 1])
+    fig_ep = plt.figure(4)
+    ax_ep = fig_ep.gca()
+    #ax_ep.set_title("Phenotype evolvability")
+    ax_ep.set_xlabel("walks")
+    ax_ep.set_ylabel("phenotype evolvability variance $\\sigma^{2}_{E_p}$")
+    
+    #https://matplotlib.org/stable/gallery/lines_bars_and_markers/linestyles.html
+    #All our experiments are limited to N<=5, so should be enough
+    linestyles=[(0,(1,1)), (5,(10,3)), (0,(3,5,1,5)), (0,(3,5,1,5,1,5)), (0,(3,1,1,1)), 'solid']
+    linestyle_it=0
+
+    for file in variance_files:
+        try:
+            neighborhood = re.search('vre_sample_variance_tracking_N(.+?).csv', file).group(1)
+        except AttributeError:
+            neighborhood = '0' # apply your error handling
+
+        #load data
+        pop_variance_data=pd.read_csv(file)
+
+        plot_legend_label="N="+str(neighborhood)
+
+        #linestyle_n=(0, (5, 10))
+        linestyle_n=linestyles[linestyle_it]
+        linestyle_it=linestyle_it+1
+
+        ax_rg.plot(pop_variance_data["count"], pop_variance_data["variance_genotype_robustness"], linestyle=linestyle_n, label=plot_legend_label)
+        ax_eg.plot(pop_variance_data["count"], pop_variance_data["variance_genotype_evolvability"], linestyle=linestyle_n, label=plot_legend_label)
+        ax_rp.plot(pop_variance_data["count"], pop_variance_data["variance_phenotype_robustness"], linestyle=linestyle_n, label=plot_legend_label)
+        ax_ep.plot(pop_variance_data["count"], pop_variance_data["variance_phenotype_evolvability"], linestyle=linestyle_n, label=plot_legend_label)
+
+    ax_rg_handles, ax_rg_labels = ax_rg.get_legend_handles_labels()
+    ax_rg_labels, ax_rg_handles = zip(*sorted(zip(ax_rg_labels, ax_rg_handles), key=lambda t: t[0]))
+    ax_rg.legend(ax_rg_handles, ax_rg_labels, loc='upper right')
+
+    ax_eg_handles, ax_eg_labels = ax_eg.get_legend_handles_labels()
+    ax_eg_labels, ax_eg_handles = zip(*sorted(zip(ax_eg_labels, ax_eg_handles), key=lambda t: t[0]))
+    ax_eg.legend(ax_eg_handles, ax_eg_labels, loc='upper right')
+
+    ax_rp_handles, ax_rp_labels = ax_rp.get_legend_handles_labels()
+    ax_rp_labels, ax_rp_handles = zip(*sorted(zip(ax_rp_labels, ax_rp_handles), key=lambda t: t[0]))
+    ax_rp.legend(ax_rp_handles, ax_rp_labels, loc='upper right')
+
+    ax_ep_handles, ax_ep_labels = ax_ep.get_legend_handles_labels()
+    ax_ep_labels, ax_ep_handles = zip(*sorted(zip(ax_ep_labels, ax_ep_handles), key=lambda t: t[0]))
+    ax_ep.legend(ax_ep_handles, ax_ep_labels, loc='upper right')
 
     plt.figure(1)
     plt.tight_layout()
@@ -1286,12 +1420,21 @@ def PlotVRESampleGenotypeEvolvabilityDistribution(df_sample_data, sample_folder,
 
     ax_eg = plt.gca()
 
-    ax_eg.hist(bins[:-1], bins, weights=counts, color='gray', edgecolor='black', linewidth=1.2)
+    #ax_eg.grid(True, color = "grey", linewidth = "1.2", linestyle = "-.")
+    ax_eg.grid(color = "grey", linestyle = ":", zorder=0)
+
+    #ax_eg.hist(bins[:-1], bins, weights=counts, color='gray', edgecolor='black', linewidth=1.2)
+    ax_eg.hist(bins[:-1], bins, weights=counts, color='red', edgecolor='black', linewidth=1.0, alpha=.5, zorder=3)
     #ax_eg.hist(base[:-1], base, weights=values, color='gray', edgecolor='black', linewidth=1.2)
 
+
     # Layout and titles
-    ax_eg.set_xlabel("genotype evolvability")
+    ax_eg.set_xlabel("genotype evolvability $E_g$")
     ax_eg.set_ylabel("frequency")
+
+    #plt.show()
+
+    plt.tight_layout()
 
     plt.savefig(destination_file+PLOT_EXTENSION)
     plt.close()
@@ -1306,7 +1449,7 @@ def PlotVREComparison(df_sample_data, sample_folder, walk_measures_source, walks
 
     #for walk_id in df_sample_data:
     for walk_id in walks:
-        y.append(df_sample_data[walk_id]["baseline_value"])
+        y.append(df_sample_data[walk_id]["baseline_value"].iloc[0])
 
         walk_folder=BuildWalkFolderStr(sample_folder,walk_id)
         #get source walk
@@ -1315,7 +1458,7 @@ def PlotVREComparison(df_sample_data, sample_folder, walk_measures_source, walks
         with open(source_walk_file) as f:
             source_walk_id = int(f.readline().strip('\n'))
 
-        x.append(walk_measures_source[source_walk_id]["local_genotype_evolvability"])
+        x.append(walk_measures_source[source_walk_id]["local_genotype_evolvability"].iloc[0])
 
 
     ax_eg = plt.gca()
@@ -1323,11 +1466,38 @@ def PlotVREComparison(df_sample_data, sample_folder, walk_measures_source, walks
     #ax_eg.scatter(x, y, color=default_color, s=6)
     ax_eg.scatter(x, y)
 
+    r2=0
+    try:
+        slope, intercept, r_value, p_value, std_err = stats.linregress(x, y)
+        r2=r_value * r_value
+
+        #Plot lin regression line
+        #keep original limit
+        xlim=ax_eg.get_xlim()
+        ax_eg.axline(xy1=(0, intercept), slope=slope, color="lightsalmon", linewidth=0.8)
+        ax_eg.set_xlim(xlim)
+
+    except Exception as e:
+        print("Caught exception:" + str(e))
+        print(traceback.format_exc())
+
+
+    r2_text="$R^2$ = {0:.6f}".format(r2)
+
+    #Add final Eb value on the graph
+    #props = dict(boxstyle="round", fc="w", ec="0.5", alpha=0.9)
+    text_box = AnchoredText(r2_text, frameon=True, loc='upper right', pad=0.5)
+    text_box.patch.set_boxstyle("round,pad=0.,rounding_size=0.2")
+    plt.setp(text_box.patch, facecolor='white', alpha=0.8)
+    ax_eg.add_artist(text_box)
+
     # Layout and titles
-    ax_eg.set_xlabel("genotype evolvability")
-    ax_eg.set_ylabel("baseline evolvability")
+    ax_eg.set_xlabel("genotype evolvability $E_g$")
+    ax_eg.set_ylabel("baseline evolvability $E_b$")
 
     #plt.show()
+
+    plt.tight_layout()
 
     plt.savefig(destination_file+PLOT_EXTENSION)
     plt.close()
@@ -1341,30 +1511,30 @@ def PlotVREExperiment(df_experiment_data, experiment_folder):
     gs = gridspec.GridSpec(2, 2)
     
     ax_rg = plt.subplot(gs[0, 0])
-    ax_rg.set_title("Genotype robustness")
-    ax_rg.set_xlabel("Number of samples")
-    ax_rg.set_ylabel("Mean")
+    #ax_rg.set_title("Genotype robustness")
+    ax_rg.set_xlabel("samples")
+    ax_rg.set_ylabel("genotype robustness $R_g$")
     ax_rg_y=defaultdict(list)#{Neighborhood:[values]}
     ax_rg_y_mean=defaultdict(list)
     
     ax_eg = plt.subplot(gs[0, 1])
-    ax_eg.set_title("Genotype evolvability")
-    ax_eg.set_xlabel("Number of samples")
-    ax_eg.set_ylabel("Mean")
+    #ax_eg.set_title("Genotype evolvability")
+    ax_eg.set_xlabel("samples")
+    ax_eg.set_ylabel("genotype evolvability $E_g$")
     ax_eg_y=defaultdict(list)
     ax_eg_y_mean=defaultdict(list)
     
     ax_rp = plt.subplot(gs[1, 0])
-    ax_rp.set_title("Phenotype robustness")
-    ax_rp.set_xlabel("Number of samples")
-    ax_rp.set_ylabel("Mean")
+    #ax_rp.set_title("Phenotype robustness")
+    ax_rp.set_xlabel("samples")
+    ax_rp.set_ylabel("phenotype robustness $R_p$")
     ax_rp_y=defaultdict(list)
     ax_rp_y_mean=defaultdict(list)
     
     ax_ep = plt.subplot(gs[1, 1])
-    ax_ep.set_title("Phenotype evolvability")
-    ax_ep.set_xlabel("Number of samples")
-    ax_ep.set_ylabel("Mean")
+    #ax_ep.set_title("Phenotype evolvability")
+    ax_ep.set_xlabel("samples")
+    ax_ep.set_ylabel("phenotype evolvability $E_p$")
     ax_ep_y=defaultdict(list)
     ax_ep_y_mean=defaultdict(list)
 
@@ -1434,6 +1604,69 @@ def PlotBRWalk(df_walk_data, walk_folder):
 
     return
 
+def PlotFitnessBECorrelation(df_sample_data, sample_folder, walks):
+    #destination_file=walk_folder+"/BR_plot"+PLOT_EXTENSION
+    destination_file=sample_folder+"/FitnessBECorrelation"
+
+    #df_walk_data["baseline_value"]
+    #df_walk_data["final_fitness"]
+
+    x=[]
+    y=[]
+
+    #for walk_id in df_sample_data:
+    for walk_id in walks:
+        x.append(df_sample_data[walk_id]["final_fitness"].iloc[0])
+        y.append(df_sample_data[walk_id]["baseline_value"].iloc[0])
+
+
+    ax = plt.gca()
+
+    #ax_eg.scatter(x, y, color=default_color, s=6)
+    ax.scatter(x, y)
+
+    #slope, intercept, r_value, p_value, std_err = stats.linregress(x, y)
+    #r2=r_value * r_value
+
+    r2=0
+    try:
+        slope, intercept, r_value, p_value, std_err = stats.linregress(x, y)
+        r2=r_value * r_value
+
+        #Plot lin regression line
+        #keep original limit
+        xlim=ax.get_xlim()
+        ax.axline(xy1=(0, intercept), slope=slope, color="lightsalmon", linewidth=0.8)
+        ax.set_xlim(xlim)
+
+    except Exception as e:
+        print("Caught exception:" + str(e))
+        print(traceback.format_exc())
+
+    r2_text="$R^2$ = {0:.6f}".format(r2)
+
+    #Add final Eb value on the graph
+    #props = dict(boxstyle="round", fc="w", ec="0.5", alpha=0.9)
+    text_box = AnchoredText(r2_text, frameon=True, loc='upper right', pad=0.5)
+    text_box.patch.set_boxstyle("round,pad=0.,rounding_size=0.2")
+    plt.setp(text_box.patch, facecolor='white', alpha=0.8)
+    ax.add_artist(text_box)
+
+    # Layout and titles
+    ax.set_xlabel("fitness")
+    ax.set_ylabel("baseline evolvability $E_b$")
+    
+
+    plt.tight_layout()
+
+    #plt.show()
+
+    plt.savefig(destination_file+PLOT_EXTENSION)
+    plt.close()
+
+
+    return
+
 
 def PlotBRWalkVariance(walk_folder):
     #variance_destination_file=walk_folder+"/BR_variance_plot"+PLOT_EXTENSION
@@ -1462,40 +1695,40 @@ def PlotBRWalkVariance(walk_folder):
     ax_angle_rad = plt.subplot(gs[2, 1])
 
     ax_genotype.errorbar(pop_variance_data["count"], pop_variance_data["genotype_distance_mean"], yerr=pop_variance_data["genotype_distance_stddev"], label='mean',  ecolor='silver')
-    ax_genotype.set_title("Genotype distance")
-    ax_genotype.set_xlabel("Number of steps")
-    ax_genotype.set_ylabel("Mean")
-    ax_genotype.legend()
+    #ax_genotype.set_title("Genotype distance")
+    ax_genotype.set_xlabel("steps")
+    ax_genotype.set_ylabel("genotype distance $D_g$")
+    ax_genotype.legend(loc='upper right')
 
     ax_phenotype.errorbar(pop_variance_data["count"], pop_variance_data["phenotype_distance_mean"], yerr=pop_variance_data["phenotype_distance_stddev"], label='mean',  ecolor='silver')
-    ax_phenotype.set_title("Phenotype distance")
-    ax_phenotype.set_xlabel("Number of steps")
-    ax_phenotype.set_ylabel("Mean")
-    ax_phenotype.legend()
+    #ax_phenotype.set_title("Phenotype distance")
+    ax_phenotype.set_xlabel("steps")
+    ax_phenotype.set_ylabel("phenotype distance $D_p$")
+    ax_phenotype.legend(loc='upper right')
 
     ax_eigen_0.errorbar(pop_variance_data["count"], pop_variance_data["eigen_value_0_mean"], yerr=pop_variance_data["eigen_value_0_stddev"], label='mean',  ecolor='silver')
-    ax_eigen_0.set_title("Eigen value 0")
-    ax_eigen_0.set_xlabel("Number of steps")
-    ax_eigen_0.set_ylabel("Mean")
-    ax_eigen_0.legend()
+    #ax_eigen_0.set_title("Eigen value 0")
+    ax_eigen_0.set_xlabel("steps")
+    ax_eigen_0.set_ylabel("eigen value 0")
+    ax_eigen_0.legend(loc='upper right')
 
     ax_eigen_1.errorbar(pop_variance_data["count"], pop_variance_data["eigen_value_1_mean"], yerr=pop_variance_data["eigen_value_1_stddev"], label='mean',  ecolor='silver')    
-    ax_eigen_1.set_title("Eigen value 1")
-    ax_eigen_1.set_xlabel("Number of steps")
-    ax_eigen_1.set_ylabel("Mean")
-    ax_eigen_1.legend()
+    #ax_eigen_1.set_title("Eigen value 1")
+    ax_eigen_1.set_xlabel("steps")
+    ax_eigen_1.set_ylabel("eigen value 1")
+    ax_eigen_1.legend(loc='upper right')
 
     ax_angle.errorbar(pop_variance_data["count"], pop_variance_data["ellipse_angle_mean"], yerr=pop_variance_data["ellipse_angle_stddev"], label='mean',  ecolor='silver')    
-    ax_angle.set_title("Ellipse angle in degree")
-    ax_angle.set_xlabel("Number of steps")
-    ax_angle.set_ylabel("Mean")
-    ax_angle.legend()
+    #ax_angle.set_title("Ellipse angle in degree")
+    ax_angle.set_xlabel("steps")
+    ax_angle.set_ylabel("ellipse angle (degree)")
+    ax_angle.legend(loc='upper right')
 
     ax_angle_rad.plot(pop_variance_data["count"], pop_variance_data["ellipse_angle_rad_mean"], label='mean')    
-    ax_angle_rad.set_title("Ellipse angle in radian")
-    ax_angle_rad.set_xlabel("Number of steps")
-    ax_angle_rad.set_ylabel("Mean")
-    ax_angle_rad.legend()
+    #ax_angle_rad.set_title("Ellipse angle in radian")
+    ax_angle_rad.set_xlabel("steps")
+    ax_angle_rad.set_ylabel("ellipse angle (radian)")
+    ax_angle_rad.legend(loc='upper right')
 
     fig = plt.gcf()
     fig.set_size_inches(10, 8)
@@ -1507,33 +1740,36 @@ def PlotBRWalkVariance(walk_folder):
     return
 
 
-def PlotBRWalkR2(walk_folder):
+def PlotBRWalkAR(walk_folder):
     #variance_destination_file=walk_folder+"/BR_variance_plot"+PLOT_EXTENSION
-    variance_destination_file=walk_folder+"/BR_Rsquared_plot"
+    #variance_destination_file=walk_folder+"/BR_Rsquared_plot"
+    variance_destination_file=walk_folder+"/BR_AR_plot"
     variance_file = walk_folder+"/br_variance_tracking.csv"
 
    #load data
     pop_variance_data=pd.read_csv(variance_file)
 
-    pop_variance_data["genotype_distance_stddev"] = pop_variance_data.apply(lambda row: math.sqrt(row["genotype_distance_variance"]), axis=1)
-    pop_variance_data["phenotype_distance_stddev"] = pop_variance_data.apply(lambda row: math.sqrt(row["phenotype_distance_variance"]), axis=1)
-    pop_variance_data["eigen_value_0_stddev"] = pop_variance_data.apply(lambda row: math.sqrt(row["eigen_value_0_variance"]), axis=1)
-    pop_variance_data["eigen_value_1_stddev"] = pop_variance_data.apply(lambda row: math.sqrt(row["eigen_value_1_variance"]), axis=1)
-    pop_variance_data["ellipse_angle_stddev"] = pop_variance_data.apply(lambda row: math.sqrt(row["ellipse_angle_variance"]), axis=1)
+    #pop_variance_data["genotype_distance_stddev"] = pop_variance_data.apply(lambda row: math.sqrt(row["genotype_distance_variance"]), axis=1)
+    #pop_variance_data["phenotype_distance_stddev"] = pop_variance_data.apply(lambda row: math.sqrt(row["phenotype_distance_variance"]), axis=1)
+    #pop_variance_data["eigen_value_0_stddev"] = pop_variance_data.apply(lambda row: math.sqrt(row["eigen_value_0_variance"]), axis=1)
+    #pop_variance_data["eigen_value_1_stddev"] = pop_variance_data.apply(lambda row: math.sqrt(row["eigen_value_1_variance"]), axis=1)
+    #pop_variance_data["ellipse_angle_stddev"] = pop_variance_data.apply(lambda row: math.sqrt(row["ellipse_angle_variance"]), axis=1)
 
-    pop_variance_data["ellipse_angle_rad_mean"]=pop_variance_data.apply(lambda row: math.radians(row["ellipse_angle_mean"]), axis=1)
+    #pop_variance_data["ellipse_angle_rad_mean"]=pop_variance_data.apply(lambda row: math.radians(row["ellipse_angle_mean"]), axis=1)
     #pop_variance_data["ellipse_angle_rad_stddev"]=pop_variance_data.apply(lambda row: math.sqrt(row["ellipse_angle_rad_mean"]), axis=1)
 
-    pop_variance_data["r_squared_stddev"]=pop_variance_data.apply(lambda row: math.sqrt(row["r_squared_variance"]), axis=1)
+    #pop_variance_data["r_squared_stddev"]=pop_variance_data.apply(lambda row: math.sqrt(row["r_squared_variance"]), axis=1)
+
+    pop_variance_data["aspect_ratio_stddev"]=pop_variance_data.apply(lambda row: math.sqrt(row["aspect_ratio_variance"]), axis=1)
 
     fig=plt.figure()
 
     ax_r2=fig.gca()
 
-    ax_r2.errorbar(pop_variance_data["count"], pop_variance_data["r_squared_mean"], yerr=pop_variance_data["r_squared_stddev"], ecolor='silver')
+    ax_r2.errorbar(pop_variance_data["count"], pop_variance_data["aspect_ratio_mean"], yerr=pop_variance_data["aspect_ratio_stddev"], ecolor='silver')
     #ax_r2.set_title("Genotype distance")
     ax_r2.set_xlabel("steps")
-    ax_r2.set_ylabel("R-squared")
+    ax_r2.set_ylabel("aspect ratio $\\alpha$")
     #ax_r2.legend()
 
     plt.tight_layout()  # otherwise the right y-label is slightly clipped
@@ -1612,22 +1848,23 @@ def PlotBRWalkEllipseEvolution(walk_folder, steps=1):
     return
 
 
-def PlotBRWalkR2Evolution(walk_folder):
-    destination_file=walk_folder+"/BR_Rsquared_plot_evolution"
+def PlotBRWalkAREvolution(walk_folder):
+    #destination_file=walk_folder+"/BR_Rsquared_plot_evolution"
+    destination_file=walk_folder+"/BR_AR_plot_evolution"
 
     ellipse_file = walk_folder+"/br_ellipse_tracking.csv"
     pop_ellipse_data=pd.read_csv(ellipse_file)
 
     #Filter out negative values (used as a flag for invalid/NaN)
-    pop_ellipse_data = pop_ellipse_data[(pop_ellipse_data['r_squared']>0)]
+    pop_ellipse_data = pop_ellipse_data[(pop_ellipse_data['aspect_ratio']>0)]
 
     fig=plt.figure()
     ax_r2=fig.gca()
 
-    ax_r2.errorbar(pop_ellipse_data["count"], pop_ellipse_data["r_squared"])
+    ax_r2.errorbar(pop_ellipse_data["count"], pop_ellipse_data["aspect_ratio"])
     #ax_r2.set_title("Genotype distance")
     ax_r2.set_xlabel("steps")
-    ax_r2.set_ylabel("R-squared")
+    ax_r2.set_ylabel("aspect ratio $\\alpha$")
     #ax_r2.legend()
 
     plt.tight_layout()  # otherwise the right y-label is slightly clipped
@@ -1651,9 +1888,9 @@ def PlotBRStep(sub_pop_sample, sub_pop_ellipse_data, x_max, y_max, destination_f
     # Create 2D Histogram plot
     #ax_br.hist2d(sub_pop_sample["genotype_distance"], sub_pop_sample["phenotype_distance"], bins=[np.arange(x_max+1) - 0.5, np.arange(y_max+1) - 0.5], alpha=0.9, cmap='Greys')
     if y_max>1.0:
-        counts, xedges, yedges, im = ax_br.hist2d(sub_pop_sample["genotype_distance"], sub_pop_sample["phenotype_distance"], bins=[np.arange(x_max+1) - 0.5, np.arange(y_max+1) - 0.5], alpha=0.9, cmap='Greys')
+        counts, xedges, yedges, im = ax_br.hist2d(sub_pop_sample["genotype_distance"], sub_pop_sample["phenotype_distance"], bins=[np.arange(x_max+2) - 0.5, np.arange(y_max+2) - 0.5], alpha=0.9, cmap='Greys')
     else:
-        counts, xedges, yedges, im = ax_br.hist2d(sub_pop_sample["genotype_distance"], sub_pop_sample["phenotype_distance"], bins=[np.arange(x_max+1) - 0.5, np.arange(0,y_max+0.2,0.1)-0.05], alpha=0.9, cmap='Greys')
+        counts, xedges, yedges, im = ax_br.hist2d(sub_pop_sample["genotype_distance"], sub_pop_sample["phenotype_distance"], bins=[np.arange(x_max+2) - 0.5, np.arange(0,y_max+0.2,0.01)-0.05], alpha=0.9, cmap='Greys')
 
     #add colorbar to hist2d
     plt.colorbar(im, ax=ax_br)
@@ -1685,10 +1922,15 @@ def PlotBRStep(sub_pop_sample, sub_pop_ellipse_data, x_max, y_max, destination_f
 
     # Layout and titles
     #ax_br.set_title("Baseline Robustness of a single walk")
-    ax_br.set_xlabel("genotype distance")
-    ax_br.set_ylabel("phenotype distance")
+    ax_br.set_xlabel("genotype distance $D_g$")
+    ax_br.set_ylabel("phenotype distance $D_p$")
     ax_br.set_xlim([-1, x_max+1])
-    ax_br.set_ylim([-1, y_max+1])
+    ax_br.set_ylim([-1, y_max+1])    
+
+    y_min=np.min(sub_pop_sample["phenotype_distance"])
+    if y_max<=1.0 and y_min>=0.0:
+        ax_br.set_ylim([-0.1, y_max+0.1])
+        
     #ax_br.legend(loc="upper left")
 
     plt.legend(loc="upper left")
@@ -1696,21 +1938,28 @@ def PlotBRStep(sub_pop_sample, sub_pop_ellipse_data, x_max, y_max, destination_f
     #Compute R2 and add to plot
     try:
         if len(sub_pop_sample["genotype_distance"].unique())>1 and len(sub_pop_sample["phenotype_distance"].unique())>1:#need more than 1 values to compute linear regression
-            slope, intercept, r_value, p_value, std_err = stats.linregress(sub_pop_sample["genotype_distance"], sub_pop_sample["phenotype_distance"])
-            r2=r_value * r_value
-            r2_text="R-squared = {0:.6f}".format(r2)
+            alpha, theta =eigen_vectors_from_data(sub_pop_sample)
+
+            #slope, intercept, r_value, p_value, std_err = stats.linregress(sub_pop_sample["genotype_distance"], sub_pop_sample["phenotype_distance"])
+            #r2=r_value * r_value
+            #r2_text="$R^2$ = {0:.6f}".format(r2)
+
+            alpha_str="{0:.6f}".format(alpha)
+            theta_str="{0:.6f}".format(theta)
+            r2_text="$\\Theta$ = "+theta_str+"\n"+"$\\alpha$ = "+alpha_str
 
             #Add final Eb value on the graph
             #props = dict(boxstyle="round", fc="w", ec="0.5", alpha=0.9)
             text_box = AnchoredText(r2_text, frameon=True, loc='upper right', pad=0.5)
             text_box.patch.set_boxstyle("round,pad=0.,rounding_size=0.2")
-            #plt.setp(text_box.patch, facecolor='white', alpha=0.5)
+            plt.setp(text_box.patch, facecolor='white', alpha=0.8)
             ax_br.add_artist(text_box)
     except :
         print("Failed to compute R2 for "+destination_file)
         print("Caught exception:" + str(e))
         print(traceback.format_exc())
 
+    plt.tight_layout()
 
     plt.savefig(destination_file+extension)
     #plt.savefig(destination_file+".png")#Need png to create the gif
@@ -1719,18 +1968,30 @@ def PlotBRStep(sub_pop_sample, sub_pop_ellipse_data, x_max, y_max, destination_f
     return
 
 
-def PlotBRStepFromData(sub_pop_sample, sub_pop_ellipse_data, x_max, y_max, destination_file, show_step=True):
+def PlotBRStepFromData(sub_pop_sample, x_max, y_max, destination_file, show_step=True):
     ax_br=plt.gca()
 
     # num of steps included
     total_steps=len(sub_pop_sample)
 
+    #print("DEBUGGING:")
+    #print("X:")
+    #print(sub_pop_sample["genotype_distance"])
+    #print("Y:")
+    #print(sub_pop_sample["phenotype_distance"])
+
+    #print("x_max:"+str(x_max))
+    #print("y_max:"+str(y_max))
+
+
+
+
     # Create 2D Histogram plot
     #ax_br.hist2d(sub_pop_sample["genotype_distance"], sub_pop_sample["phenotype_distance"], bins=[np.arange(x_max+1) - 0.5, np.arange(y_max+1) - 0.5], alpha=0.9, cmap='Greys')
     if y_max>1.0:
-        counts, xedges, yedges, im = ax_br.hist2d(sub_pop_sample["genotype_distance"], sub_pop_sample["phenotype_distance"], bins=[np.arange(x_max+1) - 0.5, np.arange(y_max+1) - 0.5], alpha=0.9, cmap='Greys')
+        counts, xedges, yedges, im = ax_br.hist2d(sub_pop_sample["genotype_distance"], sub_pop_sample["phenotype_distance"], bins=[np.arange(x_max+2) - 0.5, np.arange(y_max+2) - 0.5], alpha=0.9, cmap='Greys')
     else:
-        counts, xedges, yedges, im = ax_br.hist2d(sub_pop_sample["genotype_distance"], sub_pop_sample["phenotype_distance"], bins=[np.arange(x_max+1) - 0.5, np.arange(0,y_max+0.2,0.1)-0.05], alpha=0.9, cmap='Greys')
+        counts, xedges, yedges, im = ax_br.hist2d(sub_pop_sample["genotype_distance"], sub_pop_sample["phenotype_distance"], bins=[np.arange(x_max+2) - 0.5, np.arange(0,y_max+0.2,0.1)-0.05], alpha=0.9, cmap='Greys')
 
     #add colorbar to hist2d
     plt.colorbar(im, ax=ax_br)
@@ -1764,8 +2025,8 @@ def PlotBRStepFromData(sub_pop_sample, sub_pop_ellipse_data, x_max, y_max, desti
 
     # Layout and titles
     #ax_br.set_title("Baseline Robustness of a single walk")
-    ax_br.set_xlabel("genotype distance")
-    ax_br.set_ylabel("phenotype distance")
+    ax_br.set_xlabel("genotype distance $D_g$")
+    ax_br.set_ylabel("phenotype distance $D_p$")
     ax_br.set_xlim([-1, x_max+1])
     ax_br.set_ylim([-1, y_max+1])
     #ax_br.legend(loc="upper left")
@@ -1774,19 +2035,36 @@ def PlotBRStepFromData(sub_pop_sample, sub_pop_ellipse_data, x_max, y_max, desti
 
 
     #Compute R2 and add to plot
-    slope, intercept, r_value, p_value, std_err = stats.linregress(sub_pop_sample["genotype_distance"], sub_pop_sample["phenotype_distance"])
-    r2=r_value * r_value
-    r2_text="R-squared = {0:.6f}".format(r2)
+    #slope, intercept, r_value, p_value, std_err = stats.linregress(sub_pop_sample["genotype_distance"], sub_pop_sample["phenotype_distance"])
+    #r2=r_value * r_value
+    #r2_text="$R^2$ = {0:.6f}".format(r2)
+
+    alpha, theta =eigen_vectors_from_data(sub_pop_sample)
+
+    #slope, intercept, r_value, p_value, std_err = stats.linregress(sub_pop_sample["genotype_distance"], sub_pop_sample["phenotype_distance"])
+    #r2=r_value * r_value
+    #r2_text="$R^2$ = {0:.6f}".format(r2)
+
+    alpha_str="{0:.6f}".format(alpha)
+    theta_str="{0:.6f}".format(theta)
+
+    if(alpha>=10000):
+        alpha_str="{:e}".format(alpha)
+
+    r2_text="$\\Theta$ = "+theta_str+"\n"+"$\\alpha$ = "+alpha_str
+
 
     #Add final Eb value on the graph
     #props = dict(boxstyle="round", fc="w", ec="0.5", alpha=0.9)
     text_box = AnchoredText(r2_text, frameon=True, loc='upper right', pad=0.5)
     text_box.patch.set_boxstyle("round,pad=0.,rounding_size=0.2")
-    #plt.setp(text_box.patch, facecolor='white', alpha=0.5)
+    plt.setp(text_box.patch, facecolor='white', alpha=0.8)
     ax_br.add_artist(text_box)
 
     #bbox_props = dict(boxstyle="round", fc="w", ec="0.5", alpha=0.9)
     #plt.text(0.95, 0.95, r2_text, horizontalalignment='right', verticalalignment='top', transform=ax_br.transAxes, bbox=bbox_props)
+
+    plt.tight_layout()
 
     plt.savefig(destination_file+PLOT_EXTENSION)
     plt.close()
@@ -1861,40 +2139,40 @@ def PlotBRSample(df_sample_data, sample_folder, walks):
     x_count=range(1,len(ax_genotype_y)+1)
     
     ax_genotype.errorbar(x_count, ax_genotype_y_mean, yerr=ax_genotype_y_variance, label='mean',  ecolor='silver')
-    ax_genotype.set_title("Genotype distance")
-    ax_genotype.set_xlabel("Number of walks")
-    ax_genotype.set_ylabel("Mean")
-    ax_genotype.legend()
+    #ax_genotype.set_title("Genotype distance")
+    ax_genotype.set_xlabel("walks")
+    ax_genotype.set_ylabel("genotype distance $D_g$")
+    ax_genotype.legend(loc='upper right')
 
     ax_phenotype.errorbar(x_count, ax_phenotype_y_mean, yerr=ax_phenotype_y_variance, label='mean',  ecolor='silver')
-    ax_phenotype.set_title("Phenotype distance")
-    ax_phenotype.set_xlabel("Number of walks")
-    ax_phenotype.set_ylabel("Mean")
-    ax_phenotype.legend()
+    #ax_phenotype.set_title("Phenotype distance")
+    ax_phenotype.set_xlabel("walks")
+    ax_phenotype.set_ylabel("phenotype distance $D_p$")
+    ax_phenotype.legend(loc='upper right')
 
     ax_eigen_0.errorbar(x_count, ax_eigen_0_y_mean, yerr=ax_eigen_0_y_variance, label='mean',  ecolor='silver')
-    ax_eigen_0.set_title("Eigen value 0")
-    ax_eigen_0.set_xlabel("Number of walks")
-    ax_eigen_0.set_ylabel("Mean")
-    ax_eigen_0.legend()
+    #ax_eigen_0.set_title("Eigen value 0")
+    ax_eigen_0.set_xlabel("walks")
+    ax_eigen_0.set_ylabel("eigen value 0")
+    ax_eigen_0.legend(loc='upper right')
 
     ax_eigen_1.errorbar(x_count, ax_eigen_1_y_mean, yerr=ax_eigen_1_y_variance, label='mean',  ecolor='silver')    
-    ax_eigen_1.set_title("Eigen value 1")
-    ax_eigen_1.set_xlabel("Number of walks")
-    ax_eigen_1.set_ylabel("Mean")
-    ax_eigen_1.legend()
+    #ax_eigen_1.set_title("Eigen value 1")
+    ax_eigen_1.set_xlabel("walks")
+    ax_eigen_1.set_ylabel("eigen value 1")
+    ax_eigen_1.legend(loc='upper right')
 
     ax_angle.errorbar(x_count, ax_angle_y_mean, yerr=ax_angle_y_variance, label='mean',  ecolor='silver')    
-    ax_angle.set_title("Ellipse angle in degree")
-    ax_angle.set_xlabel("Number of walks")
-    ax_angle.set_ylabel("Mean")
-    ax_angle.legend()
+    #ax_angle.set_title("Ellipse angle in degree")
+    ax_angle.set_xlabel("walks")
+    ax_angle.set_ylabel("ellipse angle (degree)")
+    ax_angle.legend(loc='upper right')
 
     ax_angle_rad.errorbar(x_count, ax_angle_rad_y_mean, yerr=ax_angle_rad_y_variance, label='mean',  ecolor='silver')    
-    ax_angle_rad.set_title("Ellipse angle in radian")
-    ax_angle_rad.set_xlabel("Number of walks")
-    ax_angle_rad.set_ylabel("Mean")
-    ax_angle_rad.legend()
+    #ax_angle_rad.set_title("Ellipse angle in radian")
+    ax_angle_rad.set_xlabel("walks")
+    ax_angle_rad.set_ylabel("ellipse angle (radian)")
+    ax_angle_rad.legend(loc='upper right')
 
     fig = plt.gcf()
     fig.set_size_inches(10, 8)
@@ -1907,9 +2185,10 @@ def PlotBRSample(df_sample_data, sample_folder, walks):
 
 
 
-def PlotBRSampleR2(df_sample_data, sample_folder, walks):
+def PlotBRSampleAR(df_sample_data, sample_folder, walks):
     #destination_file=sample_folder+"/BR_plot"+PLOT_EXTENSION
-    destination_file=sample_folder+"/BR_plot_R2"
+    #destination_file=sample_folder+"/BR_plot_R2"
+    destination_file=sample_folder+"/BR_plot_AR"
 
     #gs = gridspec.GridSpec(3, 2)
 
@@ -1923,7 +2202,7 @@ def PlotBRSampleR2(df_sample_data, sample_folder, walks):
     #for pop in populations:
     #for walk_id in df_sample_data:
     for walk_id in walks:
-        ax_r2_y.append(df_sample_data[walk_id]["r_squared"])
+        ax_r2_y.append(df_sample_data[walk_id]["aspect_ratio"])
         ax_r2_y_mean.append(np.mean(ax_r2_y))
         ax_r2_y_variance.append(np.var(ax_r2_y))
 
@@ -1932,7 +2211,7 @@ def PlotBRSampleR2(df_sample_data, sample_folder, walks):
     ax_r2.errorbar(x_count, ax_r2_y_mean, yerr=ax_r2_y_variance, ecolor='silver')
     #ax_r2.set_title("Genotype distance")
     ax_r2.set_xlabel("walks")
-    ax_r2.set_ylabel("R-squared")
+    ax_r2.set_ylabel("aspect ratio $\\alpha$")
     #ax_r2.legend()
 
     plt.tight_layout()  # otherwise the right y-label is slightly clipped
@@ -1941,6 +2220,136 @@ def PlotBRSampleR2(df_sample_data, sample_folder, walks):
     plt.close()
     #https://timodenk.com/blog/exporting-matplotlib-plots-to-latex/
     return
+
+
+def PlotBRSampleTheta(df_sample_data, sample_folder, walks):
+    #destination_file=sample_folder+"/BR_plot"+PLOT_EXTENSION
+    #destination_file=sample_folder+"/BR_plot_R2"
+    destination_file=sample_folder+"/BR_plot_Theta"
+
+    #gs = gridspec.GridSpec(3, 2)
+
+    fig=plt.figure()
+    ax = fig.gca()
+    ax_y=[]
+    ax_y_mean=[]
+    ax_y_variance=[]
+
+
+    #double angle_rad = std::atan2(eigvec(1, 1), eigvec(1, 0));
+
+
+
+    #for pop in populations:
+    #for walk_id in df_sample_data:
+    for walk_id in walks:
+        eigvec11=df_sample_data[walk_id]["combinations_eigen_vector_1_1"].iloc[0]
+        eigvec10=df_sample_data[walk_id]["combinations_eigen_vector_1_0"].iloc[0]
+        angle_rad=math.atan2(eigvec11,eigvec10)
+        ax_y.append(angle_rad)
+        ax_y_mean.append(np.mean(ax_y))
+        ax_y_variance.append(np.var(ax_y))
+
+    x_count=range(1,len(ax_y)+1)
+    
+    ax.errorbar(x_count, ax_y_mean, yerr=ax_y_variance, ecolor='silver')
+    #ax_r2.set_title("Genotype distance")
+    ax.set_xlabel("walks")
+    ax.set_ylabel("orientation $\\Theta$")
+    #ax_r2.legend()
+
+    plt.tight_layout()  # otherwise the right y-label is slightly clipped
+
+    plt.savefig(destination_file+PLOT_EXTENSION)
+    plt.close()
+    #https://timodenk.com/blog/exporting-matplotlib-plots-to-latex/
+    return
+
+
+
+def PlotBRSampleARVariance(df_sample_data, sample_folder, walks):
+    #destination_file=sample_folder+"/BR_plot"+PLOT_EXTENSION
+    #destination_file=sample_folder+"/BR_plot_R2"
+    destination_file=sample_folder+"/BR_plot_AR_variance"
+
+    #gs = gridspec.GridSpec(3, 2)
+
+    fig=plt.figure()
+    ax_r2 = fig.gca()
+    ax_r2_y=[]
+    ax_r2_y_mean=[]
+    ax_r2_y_variance=[]
+
+
+    #for pop in populations:
+    #for walk_id in df_sample_data:
+    for walk_id in walks:
+        ax_r2_y.append(df_sample_data[walk_id]["aspect_ratio"])
+        ax_r2_y_mean.append(np.mean(ax_r2_y))
+        ax_r2_y_variance.append(np.var(ax_r2_y))
+
+    x_count=range(1,len(ax_r2_y)+1)
+    
+    #ax_r2.errorbar(x_count, ax_r2_y_mean, yerr=ax_r2_y_variance, ecolor='silver')
+    ax_r2.plot(x_count, ax_r2_y_variance)
+    #ax_r2.set_title("Genotype distance")
+    ax_r2.set_xlabel("walks")
+    ax_r2.set_ylabel("aspect ratio variance $\\sigma^{2}_{\\alpha}$")
+    #ax_r2.legend()
+
+    plt.tight_layout()  # otherwise the right y-label is slightly clipped
+
+    plt.savefig(destination_file+PLOT_EXTENSION)
+    plt.close()
+    #https://timodenk.com/blog/exporting-matplotlib-plots-to-latex/
+    return
+
+
+def PlotBRSampleThetaVariance(df_sample_data, sample_folder, walks):
+    #destination_file=sample_folder+"/BR_plot"+PLOT_EXTENSION
+    #destination_file=sample_folder+"/BR_plot_R2"
+    destination_file=sample_folder+"/BR_plot_Theta_variance"
+
+    #gs = gridspec.GridSpec(3, 2)
+
+    fig=plt.figure()
+    ax = fig.gca()
+    ax_y=[]
+    ax_y_mean=[]
+    ax_y_variance=[]
+
+
+    #double angle_rad = std::atan2(eigvec(1, 1), eigvec(1, 0));
+
+
+
+    #for pop in populations:
+    #for walk_id in df_sample_data:
+    for walk_id in walks:
+        eigvec11=df_sample_data[walk_id]["combinations_eigen_vector_1_1"].iloc[0]
+        eigvec10=df_sample_data[walk_id]["combinations_eigen_vector_1_0"].iloc[0]
+        angle_rad=math.atan2(eigvec11,eigvec10)
+        ax_y.append(angle_rad)
+        ax_y_mean.append(np.mean(ax_y))
+        ax_y_variance.append(np.var(ax_y))
+
+    x_count=range(1,len(ax_y)+1)
+    
+    #ax.errorbar(x_count, ax_y_mean, yerr=ax_y_variance, ecolor='silver')
+    ax.plot(x_count, ax_y_variance)
+
+    #ax_r2.set_title("Genotype distance")
+    ax.set_xlabel("walks")
+    ax.set_ylabel("orientation variance $\\sigma^{2}_{\\Theta}$")
+    #ax_r2.legend()
+
+    plt.tight_layout()  # otherwise the right y-label is slightly clipped
+
+    plt.savefig(destination_file+PLOT_EXTENSION)
+    plt.close()
+    #https://timodenk.com/blog/exporting-matplotlib-plots-to-latex/
+    return
+
 
 
 
@@ -2010,40 +2419,40 @@ def PlotBRExperiment(df_experiment_data, experiment_folder):
     x_count=range(1,len(ax_genotype_y)+1)
 
     ax_genotype.errorbar(x_count, ax_genotype_y_mean, yerr=ax_genotype_y_variance, label='mean',  ecolor='silver')
-    ax_genotype.set_title("Genotype distance")
-    ax_genotype.set_xlabel("Number of samples")
-    ax_genotype.set_ylabel("Mean")
-    ax_genotype.legend()
+    #ax_genotype.set_title("Genotype distance")
+    ax_genotype.set_xlabel("samples")
+    ax_genotype.set_ylabel("genotype distance $D_g$")
+    ax_genotype.legend(loc='upper right')
 
     ax_phenotype.errorbar(x_count, ax_phenotype_y_mean, yerr=ax_phenotype_y_variance, label='mean',  ecolor='silver')
-    ax_phenotype.set_title("Phenotype distance")
-    ax_phenotype.set_xlabel("Number of samples")
-    ax_phenotype.set_ylabel("Mean")
-    ax_phenotype.legend()
+    #ax_phenotype.set_title("Phenotype distance")
+    ax_phenotype.set_xlabel("samples")
+    ax_phenotype.set_ylabel("phenotype distance $D_p$")
+    ax_phenotype.legend(loc='upper right')
 
     ax_eigen_0.errorbar(x_count, ax_eigen_0_y_mean, yerr=ax_eigen_0_y_variance, label='mean',  ecolor='silver')
-    ax_eigen_0.set_title("Eigen value 0")
-    ax_eigen_0.set_xlabel("Number of samples")
-    ax_eigen_0.set_ylabel("Mean")
-    ax_eigen_0.legend()
+    #ax_eigen_0.set_title("Eigen value 0")
+    ax_eigen_0.set_xlabel("samples")
+    ax_eigen_0.set_ylabel("eigen value 0")
+    ax_eigen_0.legend(loc='upper right')
 
     ax_eigen_1.errorbar(x_count, ax_eigen_1_y_mean, yerr=ax_eigen_1_y_variance, label='mean',  ecolor='silver')    
-    ax_eigen_1.set_title("Eigen value 1")
-    ax_eigen_1.set_xlabel("Number of samples")
-    ax_eigen_1.set_ylabel("Mean")
-    ax_eigen_1.legend()
+    #ax_eigen_1.set_title("Eigen value 1")
+    ax_eigen_1.set_xlabel("samples")
+    ax_eigen_1.set_ylabel("eigen value 1")
+    ax_eigen_1.legend(loc='upper right')
 
     ax_angle.errorbar(x_count, ax_angle_y_mean, yerr=ax_angle_y_variance, label='mean',  ecolor='silver')    
-    ax_angle.set_title("Ellipse angle in degree")
-    ax_angle.set_xlabel("Number of samples")
-    ax_angle.set_ylabel("Mean")
-    ax_angle.legend()
+    #ax_angle.set_title("Ellipse angle in degree")
+    ax_angle.set_xlabel("samples")
+    ax_angle.set_ylabel("ellipse angle (degree)")
+    ax_angle.legend(loc='upper right')
 
     ax_angle_rad.errorbar(x_count, ax_angle_rad_y_mean, yerr=ax_angle_rad_y_variance, label='mean',  ecolor='silver')    
-    ax_angle_rad.set_title("Ellipse angle in radian")
-    ax_angle_rad.set_xlabel("Number of samples")
-    ax_angle_rad.set_ylabel("Mean")
-    ax_angle_rad.legend()
+    #ax_angle_rad.set_title("Ellipse angle in radian")
+    ax_angle_rad.set_xlabel("samples")
+    ax_angle_rad.set_ylabel("ellipse angle (radian)")
+    ax_angle_rad.legend(loc='upper right')
 
     fig = plt.gcf()
     fig.set_size_inches(10, 8)
@@ -2066,12 +2475,12 @@ def PlotBEWalkVariance(walk_folder):
     err_handles = ax_be.errorbar(pop_variance_data["count"], pop_variance_data["mean"], yerr=pop_variance_data["variance"], label='mean',  ecolor='silver')
     #ax_be.set_title("Baseline evolvability for a single walk")
     ax_be.set_xlabel("steps")
-    ax_be.set_ylabel("baseline evolvability")
+    ax_be.set_ylabel("baseline evolvability $E_b$")
 
     ax_be_closeness = ax_be.twinx()  # instantiate a second axes that shares the same x-axis
     ax_be_closeness_color = 'tab:green'
     line3 = ax_be_closeness.plot(pop_variance_data["count"], pop_variance_data["closeness"], label='closeness', color=ax_be_closeness_color)
-    ax_be_closeness.set_ylabel("Closeness")
+    ax_be_closeness.set_ylabel("closeness")
 
     # added these three lines
     # get handles
@@ -2154,8 +2563,8 @@ def PlotBNK_BE(walk_folder,target_sym=0.375,target_rob=0.8660254037844387):
     plt.xlim(-0.05,1.05)
     plt.ylim(0.5,1.05)
 
-    plt.xlabel("Symmetry")
-    plt.ylabel("Robustness")
+    plt.xlabel("symmetry")
+    plt.ylabel("robustness")
     #plt.title(title_bnk)
 
 
@@ -2241,7 +2650,7 @@ def PlotBNK_BE(walk_folder,target_sym=0.375,target_rob=0.8660254037844387):
             x,y=key.split(";")        
             visited_vertex.add(key)
             #plt.annotate(txt_value, (float(x), float(y)))
-            plt.annotate(str(step), (float(x)+0.005, float(y)+0.005),fontsize=8, backgroundcolor=bgcolor)
+            plt.annotate(str(step), (float(x)+0.005, float(y)+0.005),fontsize=11, backgroundcolor=bgcolor)
             step=step+1
 
     
@@ -2280,12 +2689,55 @@ def PlotBESample(df_sample_data, sample_folder, track_variance, walks):
     # Layout and titles
     #ax_be.set_title("Evolution of baseline evolvability over multiple walks")
     ax_be.set_xlabel("walks")
-    ax_be.set_ylabel("baseline evolvability")
+    ax_be.set_ylabel("baseline evolvability $E_b$")
+
+    plt.tight_layout()
 
     plt.savefig(destination_file+PLOT_EXTENSION)
     plt.close()
     #https://timodenk.com/blog/exporting-matplotlib-plots-to-latex/
     return np.mean(y)
+
+def PlotBESampleVariance(df_sample_data, sample_folder, track_variance, walks):
+    #destination_file=sample_folder+"/BE_plot"+PLOT_EXTENSION
+    destination_file=sample_folder+"/BE_plot_variance"
+
+    y=[]
+    y_mean=[]
+    y_variance=[]
+
+    #for walk_id in df_sample_data:
+    for walk_id in walks:
+        y.append(df_sample_data[walk_id]["baseline_value"])
+        y_mean.append(np.mean(y))
+        y_variance.append(np.var(y))
+
+    ax_be = plt.gca()
+    
+    x_count=range(1,len(y)+1)
+
+    #No need to plot the actual values
+    #ax_be.plot(x_count,y, label='value')
+
+    if(track_variance):
+        #ax_be.errorbar(x_count,y_mean, yerr=y_variance, ecolor='silver')
+        ax_be.plot(x_count,y_variance)
+    #ax_be.legend()
+
+    # Layout and titles
+    #ax_be.set_title("Evolution of baseline evolvability over multiple walks")
+    ax_be.set_xlabel("walks")
+    ax_be.set_ylabel("baseline evolvability variance $\\sigma^{2}_{E_b}$")
+
+    plt.tight_layout()
+
+    plt.savefig(destination_file+PLOT_EXTENSION)
+    plt.close()
+
+
+    return
+
+
 
 def PlotBEExperiment(df_experiment_data, experiment_folder, track_variance):
     #destination_file=experiment_folder+"/BE_plot"+PLOT_EXTENSION
@@ -2314,7 +2766,9 @@ def PlotBEExperiment(df_experiment_data, experiment_folder, track_variance):
     # Layout and titles
     #ax_be.set_title("Evolution of baseline evolvability over multiple samples")
     ax_be.set_xlabel("samples")
-    ax_be.set_ylabel("baseline evolvability")
+    ax_be.set_ylabel("baseline evolvability $E_b$")
+
+    plt.tight_layout()
 
     plt.savefig(destination_file+PLOT_EXTENSION)
     plt.close()
@@ -2495,6 +2949,31 @@ def eigen_vectors_from_stats(pop_stats, ax, **kwargs):
 
     return
 
+def eigen_vectors_from_data(pop_sample):
+
+    cov_mat = np.cov(pop_sample["genotype_distance"], pop_sample["phenotype_distance"])
+
+    aspect_ratio=0
+    angle_rad=0
+
+    try:
+        eigvals, eigvecs = LA.eig(cov_mat)
+
+        aspect_ratio = max(eigvals)/min(eigvals)
+
+        #ellipse orientation
+        # std::atan2(eigvec(1, 1), eigvec(1, 0));
+        #angle_rad = np.math.atan2(np.linalg.det([v0,v1]),np.dot(v0,v1))
+        angle_rad = np.math.atan2(eigvecs[1,1],eigvecs[1,0])
+        angle_deg= np.degrees(angle_rad)
+    except Exception as e:
+        print("Caught exception in eigen_vectors_from_data:" + str(e))
+        print(traceback.format_exc())
+        print("Continuing with Theta=0 and alpha=0...")
+
+    return aspect_ratio, angle_rad
+
+
 
 def PlotFitness(walk_folder):
     pop_file = walk_folder+"/vre.csv"
@@ -2555,8 +3034,14 @@ def PlotFitnessSample(df_fitness_data, sample_folder, max_generations, final_be=
 
     ax_be = plt.gca()
 
+    ax_be.plot(x_count, mean_fitness)
+    #Use what would be the default axis limits if we used only the y value
+    ylim=ax_be.get_ylim()
+    ax_be.clear()
+
     #ax_be.plot(mean_fitness,label="mean")
-    ax_be.errorbar(x_count, mean_fitness, yerr=mean_fitness_var, label='mean',  ecolor='silver')
+    ax_be.errorbar(x_count, mean_fitness, yerr=mean_fitness_var, ecolor='silver')
+    ax_be.set_ylim(ylim)
     #ax_be.plot(best_fitness,label="best")
     #ax_be.legend()
 
@@ -2567,14 +3052,17 @@ def PlotFitnessSample(df_fitness_data, sample_folder, max_generations, final_be=
 
     #Add final Eb value on the graph
     #props = dict(boxstyle="round", fc="w", ec="0.5", alpha=0.9)
-    textstr="baseline evolvability = {0:.6f}".format(final_be)
+    textstr="$E_b$ = {0:.6f}".format(final_be)
     text_box = AnchoredText(textstr, frameon=True, loc=4, pad=0.5)
     #at = AnchoredText("Figure 1a", loc='upper left', prop=dict(size=8), frameon=True)
     text_box.patch.set_boxstyle("round,pad=0.,rounding_size=0.2")
+    plt.setp(text_box.patch, facecolor='white', alpha=0.8)
     ax_be.add_artist(text_box)
 
-    #plt.setp(text_box.patch, facecolor='white', alpha=0.5)
+    #plt.setp(text_box.patch, facecolor='white', alpha=0.8)
     #ax_be.add_artist(text_box)
+
+    plt.tight_layout()
 
     #plt.show()
     plt.savefig(destination_file+PLOT_EXTENSION)
@@ -2588,6 +3076,102 @@ def PlotFitnessSample(df_fitness_data, sample_folder, max_generations, final_be=
     df_result["best"]=best_fitness
 
     return df_result
+
+
+
+def PlotBRWalks(walks, sample_folder, max_generations):
+    #destination_file=sample_folder+"/BE_plot"+PLOT_EXTENSION
+    destination_file_theta=sample_folder+"/AverageTheta"
+    destination_file_alpha=sample_folder+"/AverageAlpha"
+
+
+    all_files=[]
+    #For each walk, load the file with the orientation tracking per step
+    for walk_id in walks:
+        walk_folder=BuildWalkFolderStr(sample_folder,walk_id)
+        all_files.append(walk_folder+"/br_ellipse_tracking.csv")
+
+    li = []
+
+    for filename in all_files:
+        df = pd.read_csv(filename, index_col=None, header=0)
+        li.append(df)
+
+    frame = pd.concat(li, axis=0, ignore_index=True)
+
+    y_alpha=[]
+    y_orientation=[]
+
+    y_var_alpha=[]
+    y_var_orientation=[]
+
+    for generation in range(max_generations):
+        alpha_mean=frame.loc[frame['count'] == generation, 'aspect_ratio'].mean()
+        orientation_mean=frame.loc[frame['count'] == generation, 'orientation'].mean()
+
+        alpha_var=frame.loc[frame['count'] == generation, 'aspect_ratio'].std()
+        orientation_var=frame.loc[frame['count'] == generation, 'orientation'].std()
+
+        if math.isnan(alpha_mean) or math.isinf(alpha_mean):
+            alpha_mean=0
+        if math.isnan(orientation_mean) or math.isinf(orientation_mean):
+            orientation_mean=0
+        if math.isnan(alpha_var) or math.isinf(alpha_var):
+            alpha_var=0
+        if math.isnan(orientation_var) or math.isinf(orientation_var):
+            orientation_var=0
+
+        y_alpha.append(alpha_mean)
+        y_orientation.append(orientation_mean)
+
+        y_var_alpha.append(alpha_var)
+        y_var_orientation.append(orientation_var)
+
+
+    x_count=range(1,max_generations+1)
+
+    ####PLOT ALPHA
+    fig_a=plt.figure()
+    ax_a=fig_a.gca()
+
+    ax_a.errorbar(x_count, y_alpha, yerr=y_var_alpha, ecolor='silver')
+
+    #Just skip like the first 1/4
+    splitpoint=int(max_generations/4)
+
+    y_mean=np.mean(y_alpha[splitpoint:])
+    y_var=np.var(y_alpha[splitpoint:])
+
+    ymin=y_mean-(y_var*2)
+    ymax=y_mean+(y_var*2)
+    ax_a.set_ylim(ymin, ymax)
+
+    ax_a.set_xlabel("generation")
+    ax_a.set_ylabel("aspect ratio $\\alpha$")
+
+    plt.tight_layout()
+
+    #plt.show()
+    plt.savefig(destination_file_alpha+PLOT_EXTENSION)
+    plt.close()
+
+    ####PLOT THETA
+    fig_o=plt.figure()
+    ax_o=fig_o.gca()
+
+    ax_o.errorbar(x_count, y_orientation, yerr=y_var_orientation, ecolor='silver')
+
+    ax_o.set_xlabel("generation")
+    ax_o.set_ylabel("orientation $\\Theta$")
+
+    plt.tight_layout()
+
+    #plt.show()
+    plt.savefig(destination_file_theta+PLOT_EXTENSION)
+    plt.close()
+
+
+    return
 
 
 def PlotFitnessExperiment(df_fitness_data, experiment_folder, max_generations, final_be=0):
@@ -2627,11 +3211,13 @@ def PlotFitnessExperiment(df_fitness_data, experiment_folder, max_generations, f
 
     #Add final Eb value on the graph
     #props = dict(boxstyle="round", fc="w", ec="0.5", alpha=0.9)
-    textstr="baseline evolvability = {0:.6f}".format(final_be)
+    textstr="$E_b$ = {0:.6f}".format(final_be)
     text_box = AnchoredText(textstr, frameon=True, loc=4, pad=0.5)
     text_box.patch.set_boxstyle("round,pad=0.,rounding_size=0.2")
-    #plt.setp(text_box.patch, facecolor='white', alpha=0.5)
+    plt.setp(text_box.patch, facecolor='white', alpha=0.8)
     ax_be.add_artist(text_box)
+
+    plt.tight_layout()
 
     #plt.show()
     plt.savefig(destination_file+PLOT_EXTENSION)
@@ -2642,7 +3228,7 @@ def PlotFitnessExperiment(df_fitness_data, experiment_folder, max_generations, f
 
 
 
-def PlotBRSampleEllipse(sample_measures, sample_folder, walks):
+def PlotBRSampleEllipse(sample_folder, walks):
     destination_file=sample_folder+"/BR_ellipse_plot"
 
     all_files=[]
@@ -2656,19 +3242,42 @@ def PlotBRSampleEllipse(sample_measures, sample_folder, walks):
     x_max=np.max(pop_sample["genotype_distance"])
     y_max=np.max(pop_sample["phenotype_distance"])
 
+    #Discard INF/DBL_MAX
+    #check just under max value in case there is some sorcery happening with the precision
+    DBL_MAX=float_info.max*0.9999
+
+    if (y_max >= 1000):
+        #Discard INF/DBL_MAX values
+        #pop_sample = pop_sample[pop_sample['phenotype_distance'] < DBL_MAX] 
+        med=pop_sample["phenotype_distance"].median()
+        pop_sample = pop_sample[pop_sample['phenotype_distance'] < (med*10)] 
+        x_max=np.max(pop_sample["genotype_distance"])
+        y_max=np.max(pop_sample["phenotype_distance"])
+
+
+    #if (y_max > 1000):
+    #    #normalize y axis
+    #    pop_sample["phenotype_distance"] = pop_sample["phenotype_distance"] / pop_sample["phenotype_distance"].abs().max()
+    #    x_max=np.max(pop_sample["genotype_distance"])
+    #    y_max=np.max(pop_sample["phenotype_distance"])
+
+
     try:
-        PlotBRStepFromData(pop_sample, sample_measures, x_max, y_max, destination_file, False)
+        PlotBRStepFromData(pop_sample, x_max, y_max, destination_file, False)
     except Exception as e:
         print("Failed to plot BR sample")
         print("Caught exception:" + str(e))
         print(traceback.format_exc())
 
-    return
+    #Update DB Results
+    alpha, theta =eigen_vectors_from_data(pop_sample)
+
+    return theta, alpha
 
 
 def main(args):
     #Maximum number of plots to generate (we don't need them only, only a few to show the results
-    MAX_WALK_PLOTS=50#100
+    MAX_WALK_PLOTS=25#100
     MAX_SAMPLE_PLOTS=5#25
 
     global PLOT_EXTENSION
@@ -2764,15 +3373,15 @@ def main(args):
                 if walk_cnt < MAX_WALK_PLOTS: PlotBRWalk(walk_measures[walk_id], walk_folder)
                 if(track_variance):
                     if walk_cnt < MAX_WALK_PLOTS: PlotBRWalkVariance(walk_folder)
-                    if walk_cnt < MAX_WALK_PLOTS: PlotBRWalkR2(walk_folder)
+                    if walk_cnt < MAX_WALK_PLOTS: PlotBRWalkAR(walk_folder)
                     if walk_cnt < MAX_WALK_PLOTS: PlotBRWalkEllipseEvolution(walk_folder, 200)
-                    if walk_cnt < MAX_WALK_PLOTS: PlotBRWalkR2Evolution(walk_folder)
+                    if walk_cnt < MAX_WALK_PLOTS: PlotBRWalkAREvolution(walk_folder)
             elif experiment_type == ExperimentType.BE:
                 walk_measures[walk_id]=RetrieveBEWalkData(mysql_config,walk_id)
                 walk_fitness[walk_id]=PlotFitness(walk_folder)
                 if(track_variance):
                     if walk_cnt < MAX_WALK_PLOTS: 
-                        PlotBEWalkVariance(walk_folder)                        
+                        PlotBEWalkVariance(walk_folder)
 
             if(generate_BNK_STD):
                 if walk_cnt < MAX_WALK_PLOTS:
@@ -2794,18 +3403,26 @@ def main(args):
             if(track_variance):
                 if sample_cnt < MAX_SAMPLE_PLOTS:
                     PlotVRESampleVariancePerNeighborhood(sample_folder)
+                    PlotVRESampleAllNeighborhoods(sample_folder)
                     PlotVRESampleVarianceAllNeighborhoods(sample_folder)
                     #Plot Eg distribution
                     PlotVRESampleGenotypeEvolvabilityDistribution(walk_measures, sample_folder, df_walks["ID"])
         elif experiment_type == ExperimentType.BR:
             sample_fitness[sample_id]=PlotFitnessSample(walk_fitness, sample_folder, max_generations)
             if sample_cnt < MAX_SAMPLE_PLOTS:
+                PlotBRWalks(df_walks["ID"], sample_folder, max_generations)
                 PlotBRSample(walk_measures, sample_folder, df_walks["ID"])
-                PlotBRSampleR2(walk_measures, sample_folder, df_walks["ID"])
-                PlotBRSampleEllipse(sample_measures, sample_folder, df_walks["ID"])
+                PlotBRSampleAR(walk_measures, sample_folder, df_walks["ID"])
+                PlotBRSampleTheta(walk_measures, sample_folder, df_walks["ID"])
+                PlotBRSampleARVariance(walk_measures, sample_folder, df_walks["ID"])
+                PlotBRSampleThetaVariance(walk_measures, sample_folder, df_walks["ID"])
+                theta, alpha=PlotBRSampleEllipse(sample_folder, df_walks["ID"])
+                UpdateBRSampleData(mysql_config,theta,alpha,sample_id)
         elif experiment_type == ExperimentType.BE:
             if sample_cnt < MAX_SAMPLE_PLOTS: 
+                PlotFitnessBECorrelation(walk_measures, sample_folder, df_walks["ID"])
                 final_be=PlotBESample(walk_measures, sample_folder, track_variance, df_walks["ID"])
+                PlotBESampleVariance(walk_measures, sample_folder, track_variance, df_walks["ID"])
                 sample_fitness[sample_id]=PlotFitnessSample(walk_fitness, sample_folder, max_generations, final_be)
                 if(bnk_source_exp_id>0):
                     #first, get the results of the source experiment

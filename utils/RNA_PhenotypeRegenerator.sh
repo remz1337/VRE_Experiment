@@ -66,12 +66,16 @@ structure=$RANDOM_PHENOTYPE
 #execute rnainverse
 line_count=0
 
-while [ $line_count -lt $INVERSE_REPEAT ]; do
-	#RNAInverse -Fmp -f 0.99 -R%INVERSE_REPEAT% < %STRUCTURE_FILE% > %INVERSE_FILE%
-	RNAinverse -R$INVERSE_REPEAT < $STRUCTURE_FILE > $INVERSE_FILE
+#while [ $line_count -lt $INVERSE_REPEAT ]; do
+#	#RNAInverse -Fmp -f 0.99 -R%INVERSE_REPEAT% < %STRUCTURE_FILE% > %INVERSE_FILE%
+#	RNAinverse -R$INVERSE_REPEAT < $STRUCTURE_FILE > $INVERSE_FILE
 
-	line_count=$(< "$INVERSE_FILE" wc -l)
-done
+#	line_count=$(< "$INVERSE_FILE" wc -l)
+#done
+
+RNAinverse -R$INVERSE_REPEAT < $STRUCTURE_FILE > $INVERSE_FILE
+
+line_count=$(< "$INVERSE_FILE" wc -l)
 
 #First, Refold to validate the generate RNA sequence from the inverse folder
 $VRNA_PARSER -i $INVERSE_FILE -r --target="$structure" > $REFOLD_FILE

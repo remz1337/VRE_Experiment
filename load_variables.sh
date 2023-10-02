@@ -14,6 +14,9 @@ SYSTEM_INTEGER_LIMIT=2147483647
 #Following method from paper "Determining sample size...", max shouldn't be above ~16k. 20k should be enough to cover for duplicate entries
 MAX_GENERATIONS_WITH_BUFFER=20000
 
+#it's 10000, but using 5000 just in case
+MAX_SLURM_ARRAY_SIZE=400
+
 #Common filenames
 #INITIAL_VRE_POPULATION_FILENAME="rnavre.csv"
 #FINAL_POPULATION_FILENAME="vre_pop.csv"
@@ -51,6 +54,11 @@ MYSQL_EXEC_JOB="$ROOT_FOLDER/mysql_exec_job.sh"
 PREPARE_LOAD="$ROOT_FOLDER/prepare_load.sh"
 SBATCH_PREPARE_SAMPLE="$ROOT_FOLDER/sbatch_prepare_sample.sh"
 SBATCH_GENERATE="$ROOT_FOLDER/sbatch_generate.sh"
+
+SBATCH_JAVA_VRE="$ROOT_FOLDER/sbatch_generate_job_vre.sh"
+SBATCH_JAVA_BASELINE="$ROOT_FOLDER/sbatch_generate_job_baseline.sh"
+#MYSQL_EXEC="$ROOT_FOLDER/mysql_exec.sh"
+#PREPARE_LOAD="$ROOT_FOLDER/prepare_load.sh"
 
 #Common filenames
 MYSQL_CREDENTIALS_FILENAME="mysql_creds.env"

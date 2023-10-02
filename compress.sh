@@ -16,7 +16,7 @@ cd "$COMPRESS_FOLDER"
 
 #First create tarball, then compress
 #tar -Ipigz --remove-files -cf "expr_$EXPERIMENT_ID.tar.gz" "$EXPERIMENT_FOLDER"
-tar -Ipigz -cf "expr_$EXPERIMENT_ID.tar.gz" "$EXPERIMENT_FOLDER"
+tar --exclude='*.png' --exclude='*.pdf' -Ipigz -cf "expr_$EXPERIMENT_ID.tar.gz" "$EXPERIMENT_FOLDER"
 
 #Copy to persistent storage (project folder)
 #First check if test DB or Prod
@@ -33,7 +33,8 @@ if [[ $database == *"test"* ]]; then
 	target_file="/home/myuser/projects/slurm-account/myuser/VRE_Exp_BU/test_exp/expr_$EXPERIMENT_ID.tar.gz"
 fi
 
-cp "$source_file" "$target_file"
+#Comment to keep in scratch only if the project folder is full
+#cp "$source_file" "$target_file"
 
 #Remove local files?
 #rm "$source_file"

@@ -1,0 +1,362 @@
+# ec.Evolve
+# ==============================
+
+# one thread
+evalthreads = 				1
+breedthreads = 				1
+
+# ECJ used to use this as its initial random seed by default.  No longer, now
+# it's assumed to be the wall clock time by default.
+# seed.0 = 				4357
+seed.0 =				time
+
+# ec.EvolutionState
+# ==============================
+
+# We're not writing checkpoint files.  If we were, we'd do it every
+# generation, and the prefix to all the files would be "ec.*"
+checkpoint =				false
+checkpoint-modulo =                     1
+checkpoint-prefix = 			ec
+
+#
+# The following parameter file will set up a very basic form
+# of evolution, single-threaded, no coevolution, no exchanging,
+# no cross-population breeding, using generational evolution,
+# simple fitness, popsize=1024, etc.
+# You'll need to fill in some of the gaps.
+#
+
+# ec.Evolve
+# ==============================
+
+# simple generational evolution
+state = 				    ec.simple.SimpleEvolutionState
+
+# ec.EvolutionState
+# ==============================
+
+# We're using the standard initialization method
+init = 					    ec.simple.SimpleInitializer
+
+# We're using the standard (empty) finalization method
+finish = 	        	    ec.simple.SimpleFinisher
+
+# We're using the standard (empty) exchange method
+exch = 					    ec.simple.SimpleExchanger
+
+# We're using standard breeding -- no cross-population breeding
+breed =					    ec.simple.SimpleBreeder
+
+# We're using standard evaluation -- no coevolution
+eval =					    ec.simple.SimpleEvaluator
+
+# We're using simple statistics
+stat =					    ec.simple.SimpleStatistics
+
+# run for 51 generations, quit prematurely if I find something ideal
+generations =				10000
+quit-on-run-complete =		true
+
+# ec.Initializer
+# ==============================
+
+pop = 					    ec.Population
+
+
+# ec.Population
+# ==============================
+
+# No multiple populations
+pop.subpops =				1
+pop.subpop.0 = 				ec.Subpopulation
+
+
+# ec.Subpopulation
+# ==============================
+
+# subpop size is 1024 individuals
+pop.subpop.0.size =			100
+# don't bother trying to eliminate duplicates from the
+# initial population
+pop.subpop.0.duplicate-retries =	0
+
+
+#
+# We define the fitness of an individual to use the traditional
+# Koza-style fitness metrics, just to make everyone happy :-)
+#
+
+#pop.subpop.0.species.fitness = ec.gp.koza.KozaFitness
+
+#
+# We have a GP-specific initializer.  But we'll keep the
+# statistics as a SimpleStatistics (defined in simple.params)
+
+init = ec.gp.GPInitializer
+
+
+# We have a single subpopulation containing a GPSpecies,
+# using GPIndividuals as the prototypical individual class.
+
+pop.subpop.0.species = ec.gp.GPSpecies
+pop.subpop.0.species.ind = ec.gp.GPIndividual
+
+# We retry 100 times for duplicates (this is the lil-gp default)
+# in our subpopulation 0
+
+pop.subpop.0.duplicate-retries = 100
+
+
+#
+# We specify a few things about ADFs  -- what kind
+# of stack they use, and what kind of context
+#
+
+gp.problem.stack = ec.gp.ADFStack
+gp.adf-stack.context = ec.gp.ADFContext
+
+
+# Here we define a single atomic type, "nil", which everyone will use.
+# There are no set types defined.
+
+gp.type.a.size = 1
+gp.type.a.0.name = nil
+gp.type.s.size = 0
+
+# Here we define one GPTreeConstraints object, "tc0",
+# which uses ec.gp.koza.HalfBuilder to create nodes,
+# only allows nodes from the GPFunctionSet "fset",
+# and has the single type "nil" as its tree type.
+# You don't need to include the class declaration here,
+# but it quiets warnings.
+
+gp.tc.size = 1
+gp.tc.0 = ec.gp.GPTreeConstraints
+gp.tc.0.name = tc0
+gp.tc.0.fset = f0
+gp.tc.0.returns = nil
+
+# The tree uses an ec.gp.koza.HalfBuilder to create
+# itself initially.
+# HalfBuilder will pick GROW half the time and FULL
+# the other half, with a ramp from 2 to 6 inclusive.
+# By ramp we mean that it first picks a random number between
+# 2 and 6 inclusive.  This then becomes the *maximum* tree size
+# (for the FULL approach, it's the tree size of the tree, for
+# GROW, the tree can get no bigger than this)
+
+gp.tc.0.init = ec.gp.koza.HalfBuilder
+
+# We set the default for HalfBuilder to be a ramp of 2--6,
+# with a grow probability of 0.5
+gp.koza.half.min-depth = 2
+gp.koza.half.max-depth = 6
+gp.koza.half.growp = 0.5
+
+
+
+# Here we define 7 GPNodeConstraints, nc0...nc6, which
+# describe nodes with 0...6 children respectively, which only
+# use a single type, "nil", for their argument and return types
+# You don't need to include the class declarations with everything
+# else below, but it quiets warnings
+
+gp.nc.size = 7
+
+gp.nc.0 = ec.gp.GPNodeConstraints
+gp.nc.0.name = nc0
+gp.nc.0.returns = nil
+gp.nc.0.size = 0
+
+gp.nc.1 = ec.gp.GPNodeConstraints
+gp.nc.1.name = nc1
+gp.nc.1.returns = nil
+gp.nc.1.size = 1
+gp.nc.1.child.0 = nil
+
+gp.nc.2 = ec.gp.GPNodeConstraints
+gp.nc.2.name = nc2
+gp.nc.2.returns = nil
+gp.nc.2.size = 2
+gp.nc.2.child.0 = nil
+gp.nc.2.child.1 = nil
+
+gp.nc.3 = ec.gp.GPNodeConstraints
+gp.nc.3.name = nc3
+gp.nc.3.returns = nil
+gp.nc.3.size = 3
+gp.nc.3.child.0 = nil
+gp.nc.3.child.1 = nil
+gp.nc.3.child.2 = nil
+
+gp.nc.4 = ec.gp.GPNodeConstraints
+gp.nc.4.name = nc4
+gp.nc.4.returns = nil
+gp.nc.4.size = 4
+gp.nc.4.child.0 = nil
+gp.nc.4.child.1 = nil
+gp.nc.4.child.2 = nil
+gp.nc.4.child.3 = nil
+
+gp.nc.5 = ec.gp.GPNodeConstraints
+gp.nc.5.name = nc5
+gp.nc.5.returns = nil
+gp.nc.5.size = 5
+gp.nc.5.child.0 = nil
+gp.nc.5.child.1 = nil
+gp.nc.5.child.2 = nil
+gp.nc.5.child.3 = nil
+gp.nc.5.child.4 = nil
+
+gp.nc.6 = ec.gp.GPNodeConstraints
+gp.nc.6.name = nc6
+gp.nc.6.returns = nil
+gp.nc.6.size = 6
+gp.nc.6.child.0 = nil
+gp.nc.6.child.1 = nil
+gp.nc.6.child.2 = nil
+gp.nc.6.child.3 = nil
+gp.nc.6.child.4 = nil
+gp.nc.6.child.5 = nil
+
+
+# Stolen from koza/params -- overwriting just
+# a little for readability
+# You need to create at least one function set,
+# called "f0", which your first tree will use.
+
+gp.fs.size = 1
+gp.fs.0.name = f0
+gp.fs.0.size = 9
+gp.fs.0.func.0 = ec.app.parity.func.And
+gp.fs.0.func.0.nc = nc2
+gp.fs.0.func.1 = ec.app.parity.func.Or
+gp.fs.0.func.1.nc = nc2
+gp.fs.0.func.2 = ec.app.parity.func.Nand
+gp.fs.0.func.2.nc = nc2
+gp.fs.0.func.3 = ec.app.parity.func.Nor
+gp.fs.0.func.3.nc = nc2
+gp.fs.0.func.4 = ec.app.parity.func.Not
+gp.fs.0.func.4.nc = nc1
+gp.fs.0.func.5 = ec.app.parity.func.D0
+gp.fs.0.func.5.nc = nc0
+gp.fs.0.func.6 = ec.app.parity.func.D1
+gp.fs.0.func.6.nc = nc0
+gp.fs.0.func.7 = ec.app.parity.func.D2
+gp.fs.0.func.7.nc = nc0
+gp.fs.0.func.8 = ec.app.parity.func.D3
+gp.fs.0.func.8.nc = nc0
+#gp.fs.0.func.8 = ec.app.parity.func.D4
+#gp.fs.0.func.8.nc = nc0
+#gp.fs.0.func.9 = ec.app.parity.func.D5
+#gp.fs.0.func.9.nc = nc0
+#gp.fs.0.func.10 = ec.app.parity.func.D6
+#gp.fs.0.func.10.nc = nc0
+#gp.fs.0.func.11 = ec.app.parity.func.D7
+#gp.fs.0.func.11.nc = nc0
+#gp.fs.0.func.12 = ec.app.parity.func.D8
+#gp.fs.0.func.12.nc = nc0
+#gp.fs.0.func.13 = ec.app.parity.func.D9
+#gp.fs.0.func.13.nc = nc0
+#gp.fs.0.func.14 = ec.app.parity.func.D10
+#gp.fs.0.func.14.nc = nc0
+#gp.fs.0.func.15 = ec.app.parity.func.D11
+#gp.fs.0.func.15.nc = nc0
+
+
+#
+# We specify our problem here
+#
+
+eval.problem = ec.app.parity.Parity
+eval.problem.data = ec.app.parity.ParityData
+
+# Here we determine what kind of Parity we're doing:
+eval.problem.bits = 4
+eval.problem.even = true
+
+
+# The problem is redefined as a GEProblem.  The ACTUAL problem
+# will be defined in eval.problem.problem
+
+eval.problem = ec.gp.ge.GEProblem
+
+pop.subpop.0.duplicate-retries = 100
+
+pop.subpop.0.species = ec.gp.ge.GESpecies
+pop.subpop.0.species.parser = ec.gp.ge.GrammarParser
+
+# The individual is a GEIndividual
+pop.subpop.0.species = ec.gp.ge.GESpecies
+pop.subpop.0.species.ind = ec.gp.ge.GEIndividual
+#pop.subpop.0.species.fitness = ec.gp.koza.KozaFitness
+pop.subpop.0.species.fitness = ec.simple.SimpleFitness
+
+# We'll allow 256 possibilities per gene (the maximum anyway
+# since GEIndividual is a ByteVectorIndividual).  Crossover-type
+# is entirely unused.
+pop.subpop.0.species.min-gene = -128
+pop.subpop.0.species.max-gene = 127
+pop.subpop.0.species.mutation-prob = 0.01
+#pop.subpop.0.species.crossover-type = one
+
+# Individuals are built using geometric series.  The minimum allowed size is 5.
+pop.subpop.0.species.genome-size = uniform
+pop.subpop.0.species.min-initial-size = 60
+pop.subpop.0.species.max-initial-size = 60
+
+
+pop.subpop.0.species.pipe = ec.breed.BufferedBreedingPipeline
+pop.subpop.0.species.pipe.num-inds = 1
+pop.subpop.0.species.pipe.likelihood = 1.0
+pop.subpop.0.species.pipe.source.0 = ec.vector.breed.VectorMutationPipeline
+pop.subpop.0.species.pipe.source.0.likelihood = 1.0
+pop.subpop.0.species.pipe.source.0.source.0 = ec.gp.ge.breed.GECrossoverPipeline
+pop.subpop.0.species.pipe.source.0.source.0.likelihood = 0.9
+pop.subpop.0.species.pipe.source.0.source.0.source.0 = ec.select.TournamentSelection
+pop.subpop.0.species.pipe.source.0.source.0.source.1 = same
+select.tournament.size = 7
+#select.tournament.pick-worst = false
+
+# By default we don't allow wrapping
+ge.species.passes = 1
+# init-scheme
+ge.species.init-scheme = default
+
+
+# Build the dummy GP Individual information.  This stuff is necessary to convince
+# GP that all is well and good with the trees that GE is creating and handing to
+# GP to evaluate.
+
+pop.subpop.0.species.gp-species = ec.gp.GPSpecies
+#pop.subpop.0.species.gp-species.fitness = ec.gp.koza.KozaFitness
+pop.subpop.0.species.gp-species.fitness = ec.simple.SimpleFitness
+pop.subpop.0.species.gp-species.ind = ec.gp.GPIndividual
+pop.subpop.0.species.gp-species.ind.numtrees = 1
+pop.subpop.0.species.gp-species.ind.tree.0 = ec.gp.GPTree
+pop.subpop.0.species.gp-species.ind.tree.0.tc = tc0
+# We'll never use this, so let's set it to Reproduction, which is simple
+pop.subpop.0.species.gp-species.pipe = ec.breed.ReproductionPipeline
+pop.subpop.0.species.gp-species.pipe.num-sources = 1
+pop.subpop.0.species.gp-species.pipe.source.0 = ec.select.TournamentSelection
+
+# stat = ec.simple.SimpleShortStatistics
+
+
+
+ge.species.file.0 = parity.grammar
+eval.problem.problem = ec.app.parity.Parity
+eval.problem.problem.data = ec.app.parity.ParityData
+
+# Here we determine what kind of Parity we're doing:
+eval.problem.problem.bits = 4
+eval.problem.problem.even = true
+
+#================================================================================
+# Our custom stats class prints out newly discovered best-of run individuals
+# as they are discovered.
+#================================================================================
+#stat = ec.cgp.Stats
+stat =   ec.vre.AFTStats
+stat.VRE-CSV = $ge.csv

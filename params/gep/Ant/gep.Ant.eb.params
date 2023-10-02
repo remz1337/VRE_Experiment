@@ -1,0 +1,202 @@
+# This parameter file supports the GEP Ant Trail.
+#
+# A text file provides the data.
+
+# ec.EvolutionState
+# ==============================
+
+# We're not writing checkpoint files.  If we were, we'd do it every
+# generation, and the prefix to all the files would be "ec.*"
+checkpoint =				false
+checkpoint-modulo =                     1
+checkpoint-prefix = 			ec
+prefix = 				        ec
+
+# ec.Evolve
+# ==============================
+
+# we want store announcements in memory, so...
+store = 				true
+
+# totally verbose (see ECJ documentation for the various values of verbosity ... 0, 1000, 2000, etc.)
+verbosity = 				0
+
+# flush output immediately, don't buffer it
+flush = 				true
+
+# one thread  - could have multiple threads but it would NOT work as per the GeneXProTools system
+#               and it is not tested at all! Probably best to NOT change this.
+#               Simple testing shows it's probably OK to have more than 1 eval thread BUT only 1 breeding thread will work properly!
+evalthreads = 				1
+breedthreads = 				1
+
+# a good random seed for thread 0  - as per ec.params but we might want a different one for gep
+seed.0 = 				time
+#seed.0 = 				4357
+
+
+# ec.EvolutionState
+# ==============================
+
+# simple generational evolution -- don't change this
+state = 				ec.simple.SimpleEvolutionState
+
+# We're using the GEP initialization method (required for GEP problems -- or some modified variation of this)
+init = 					ec.gep.GEPInitializer
+
+# We're using the standard (empty) finalization method by default
+finish = 	        	ec.simple.SimpleFinisher
+
+# We're using the standard (empty) exchange method
+exch = 					ec.simple.SimpleExchanger
+
+# We're using standard breeding -- no cross-population breeding (do NOT change for GEP)
+breed =					ec.simple.SimpleBreeder
+
+# We're using standard evaluation -- no coevolution (do NOT change for GEP)
+eval =					ec.simple.SimpleEvaluator
+
+# ec.Population
+# ==============================
+
+pop = 					ec.Population
+
+# No multiple populations for gep so subpops should always be 1
+# and must always use GEPSubpopulation
+pop.subpops =				1
+pop.subpop.0 = 			ec.gep.GEPSubpopulation
+
+
+# ec.Subpopulation
+# ==============================
+# don't bother trying to eliminate duplicates from the
+# initial population
+pop.subpop.0.duplicate-retries =	0
+
+# Do try to get initial population with non-zero fitness values.
+# This tries to ensure we start with a population that has few poor
+# individuals with a fitness value of zero.
+pop.subpop.0.zero-fitness-retries = 10
+
+# You might change the species, but it must be a GEPSpeciesForm!
+pop.subpop.0.species = 			  ec.gep.GEPSpecies
+
+# Must have GEPIndividuals!
+pop.subpop.0.species.ind = 		ec.gep.GEPIndividual
+
+# may want to turn on/off simplifying expressions when human readable form of individual is printed
+# (careful since the meditor.jar file must be in start directory and it has been know to cause
+# crashes or no terminating loops for some expressions)
+pop.subpop.0.species.ind.simplify-expressions = false
+
+# use SimpleFitness for the subpop
+pop.subpop.0.species.fitness =			ec.simple.SimpleFitness
+
+
+# ec.Species
+# ==============================
+# standard defaults for the evolutionary parameters as suggested by Ferreira
+gep.species.inversion-prob         = 0.1
+gep.species.mutation-prob          = 0.044
+gep.species.istransposition-prob   = 0.1
+gep.species.ristransposition-prob  = 0.1
+gep.species.onepointrecomb-prob    = 0.3
+gep.species.twopointrecomb-prob    = 0.3
+gep.species.generecomb-prob        = 0.1
+gep.species.genetransposition-prob = 0.1
+
+# Constants can not be used with Logical problem types ... will be ignored if specified
+gep.species.use-constants             = false
+# examples for constants if used
+# gep.species.numconstantspergene       = 10
+# gep.species.integer-constants         = true
+# gep.species.constants-lowerlimit      = 0
+# gep.species.constants-upperlimit      = 100
+# can always default to these values as suggested by Ferreira
+gep.species.rnc-mutation-prob         = 0.01
+gep.species.dc-mutation-prob          = 0.044
+gep.species.dc-inversion-prob         = 0.1
+gep.species.dc-istransposition-prob   = 0.1
+
+# Do NOT change the species symbolset... must be GEPSymbolSet
+gep.species.symbolset   = ec.gep.GEPSymbolSet
+
+# symbolset.name is not actually used since we only have one symbol
+# set at this time BUT a name must be specified so do it in the default params
+gep.species.symbolset.name = ss0
+#
+
+gep.species.pipe = ec.gep.breed.GEPBaselineMutationPipeline
+gep.baselinemutation.source.0 = ec.select.SteadySelection
+
+vre.baselinemutation.keepbest = true
+vre.baselinemutation.neighborhood = 1
+
+# 1 is the default and only value used by Ferreira (could be changed to operate differently than Ferreira
+# or to make sure we have the k best individuals in the final generation)
+breed.elite.0 = 0
+
+
+# Problem
+#===============================
+eval.problem = ec.app.gep.Ant.Ant_Eb
+eval.problem.moves = 400
+eval.problem.file = santafe.trl
+
+# run for 50 generations, quit prematurely if I find something ideal
+generations =				    100
+quit-on-run-complete =			true
+
+# ec.Subpopulation
+# ==============================
+
+# subpop size is 30 individuals
+pop.subpop.0.size =			1
+
+
+# ec.Species
+# ==============================
+
+gep.species.inversion-prob         = 0.0
+gep.species.mutation-prob          = 0.0
+gep.species.istransposition-prob   = 0.0
+gep.species.ristransposition-prob  = 0.0
+gep.species.onepointrecomb-prob    = 0.0
+gep.species.twopointrecomb-prob    = 0.0
+gep.species.generecomb-prob        = 0.0
+gep.species.genetransposition-prob = 0.0
+gep.species.baseline-mutation-prob = 0.1
+
+gep.species.use-constants             = false
+gep.species.rnc-mutation-prob         = 0.0
+gep.species.dc-mutation-prob          = 0.0
+gep.species.dc-inversion-prob         = 0.0
+gep.species.dc-istransposition-prob   = 0.0
+
+gep.species.numchromosomes = 1
+gep.species.numgenes = 1
+gep.species.gene-headsize = 30
+gep.species.gene-linking-function = Ant_IfFoodAhead
+
+# Problem type must be one of: functionfinding, classification, timeseries, logical, control
+# Set default to be 'unknown' so user is forced to specify in the problem params file 
+gep.species.problemtype = control
+
+#gep.species.symbolset.terminalfilename = ec/app/gep/Majority/Majority.txt
+#gep.species.symbolset.terminalfilename = C:/Users/rbedardcouture/source/repos/ecj_GEP/ecj/src/main/resources/ec/app/gep/Ant/santafe.trl
+gep.species.symbolset.terminalsize = 3
+gep.species.symbolset.terminal.0 = L
+gep.species.symbolset.terminal.1 = R
+gep.species.symbolset.terminal.2 = M
+gep.species.symbolset.functionsize = 2
+gep.species.symbolset.function.0 = Ant_IfFoodAhead
+gep.species.symbolset.function.0.weight = 1
+gep.species.symbolset.function.1 = Ant_ProgN2
+gep.species.symbolset.function.1.weight = 1
+
+# ec.SimpleStatistics
+# ==============================
+stat = ec.vre.VREStats
+stat.VRE-CSV = $gepvre.csv
+
+eval.problem.target-phenotype =   {x}

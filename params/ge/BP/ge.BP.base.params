@@ -316,7 +316,7 @@ vre.baselinemutation.neighborhood = 1
 pop.subpop.0.species.pipe.source.0 = ec.select.SteadySelection
 
 
-#pop.file = path/to/repo/ecj_cgp/ecj/population.in
+ 
 
 
 # By default we don't allow wrapping

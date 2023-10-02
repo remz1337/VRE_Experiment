@@ -2,4 +2,4 @@
 <start> ::= <op>
 <op> ::= (and <op><op>) | (or <op><op>) | (nand <op> <op>) | (nor <op> <op>)
 <op> ::= (not <op>)
-<op> ::= (D0) | (D1) | (D2) | (D3)
+<op> ::= (d0) | (d1) | (d2) | (d3)

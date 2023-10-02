@@ -40,24 +40,32 @@ source $LOAD_VARIABLES
 source $PREPARE_LOAD $EXPERIMENT_ID
 #Dynamically adjust memory needs, based on population size and number of generation
 MEM_PER_CPU="2G"
+JOB_TIME="00-06:00:00"
+CPUS=6
 EXP_SCALE=$((POPULATION_SIZE * GENERATIONS))
 if [ $EXP_SCALE -ge 1000000 ]; then 
 	MEM_PER_CPU="24G"
+	JOB_TIME="01-00:00:00"
+	CPUS=6
 elif [ $EXP_SCALE -ge 100000 ]; then 
 	MEM_PER_CPU="12G"
+	JOB_TIME="00-12:00:00"
+	CPUS=8
 elif [ $EXP_SCALE -ge 10000 ]; then 
 	MEM_PER_CPU="6G"
+	JOB_TIME="00-08:00:00"
+	CPUS=12
 else
 	MEM_PER_CPU="4G"
+	JOB_TIME="00-04:00:00"
+	CPUS=16
 fi
-
-#echo "MEM_PER_CPU:$MEM_PER_CPU"
 
 source $GENERATE_SCRIPT $EXPERIMENT_ID
 
 #Wait for all java job arrays to complete, then run the analysis job
 #ANALYZE_JOB_ID=$(sbatch --parsable --dependency=afterok:$GENERATE_JOB_ID sbatch_analyze.sh $EXPERIMENT_ID)
-ANALYZE_JOB_ID=$(sbatch --mem-per-cpu=$MEM_PER_CPU --parsable --dependency=afterany:$GENERATE_JOB_ID sbatch_analyze.sh $EXPERIMENT_ID)
+ANALYZE_JOB_ID=$(sbatch --mem-per-cpu=$MEM_PER_CPU --time=$JOB_TIME --cpus-per-task=$CPUS --parsable --dependency=afterany:$GENERATE_JOB_ID sbatch_analyze.sh $EXPERIMENT_ID)
 
 #Moved into analyze script
 #Then create the plots

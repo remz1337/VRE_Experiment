@@ -1,6 +1,6 @@
 #!/bin/sh
 #SBATCH --job-name=Plot
-#SBATCH --time=00-12:00:00
+#SBATCH --time=00-02:00:00
 #SBATCH --account=slurm-account
 #SBATCH --mail-user=myemail@email.com
 #SBATCH --mail-type=BEGIN
@@ -10,7 +10,7 @@
 #SBATCH --mail-type=ALL
 #SBATCH --cpus-per-task=4
 ##SBATCH --mem-per-cpu=12G
-#SBATCH --mem=80G
+#SBATCH --mem=60G
 ##SBATCH --array=2-4
 #SBATCH --output=slurm/plotter/slurm-%j.out
 ##SBATCH --error=slurm/plotter/slurm-%j.err
@@ -49,7 +49,10 @@ pip3 install scipy
 #Define some global constants
 ROOT_FOLDER=$PWD
 #DATABASE="$ROOT_FOLDER/vre/vre.db3"
-PYTHON_PLOTTER="$ROOT_FOLDER/vre/ManualStackedRNAExp.py"
+#PYTHON_PLOTTER="$ROOT_FOLDER/vre/BRSampleEllipse.py"
+#PYTHON_PLOTTER="$ROOT_FOLDER/vre/ManualStackedRNAExp.py"
+#PYTHON_PLOTTER="$ROOT_FOLDER/vre/ManualStackedFitness.py"
+PYTHON_PLOTTER="$ROOT_FOLDER/vre/ManualRNARibES.py"
 #PYTHON_PLOTTER="$ROOT_FOLDER/vre/ManualFitnessLandscapeSymRob.py"
 EXPERIMENT_FOLDER="$ROOT_FOLDER/experiments"
 

@@ -10,7 +10,8 @@
 #SBATCH --mail-type=REQUEUE
 #SBATCH --mail-type=ALL
 #SBATCH --cpus-per-task=2
-#SBATCH --mem-per-cpu=10G
+##SBATCH --mem-per-cpu=12G
+#SBATCH --mem=24G
 #Too many logs
 ##SBATCH --output=slurm/generate_baseline/slurm-%j.out
 ##SBATCH --error=slurm/generate_baseline/slurm-%j.err

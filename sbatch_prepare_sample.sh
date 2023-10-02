@@ -3,11 +3,11 @@
 #SBATCH --time=00-06:00:00
 #SBATCH --account=slurm-account
 #SBATCH --mail-user=myemail@email.com
-#SBATCH --mail-type=BEGIN
-#SBATCH --mail-type=END
-#SBATCH --mail-type=FAIL
-#SBATCH --mail-type=REQUEUE
-#SBATCH --mail-type=ALL
+##SBATCH --mail-type=BEGIN
+##SBATCH --mail-type=END
+##SBATCH --mail-type=FAIL
+##SBATCH --mail-type=REQUEUE
+##SBATCH --mail-type=ALL
 #SBATCH --cpus-per-task=2
 #SBATCH --mem-per-cpu=6G
 #Too many logs
